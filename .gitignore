@@ -1,0 +1,38 @@
+# Waseem Sports — project gitignore (travels with the handoff package)
+# NOTE: `.env.example` is required by the package and is explicitly
+# re-included — a bare `.env*` rule would swallow it.
+
+node_modules/
+.next/
+out/
+dist/
+*.tsbuildinfo
+
+# env: ignore real env files, keep the example
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+!.env.example
+
+# logs / OS junk
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# local scratch + phase-00 working files (measurements, harness copies)
+.tmp/
+
+# Supabase CLI state for THIS machine (linked project ref, pooler host, versions)
+# — deployment detail, not project source; every clone links its own project.
+supabase/.temp/
+
+# superseded designs stay local (carries a node_modules tree); never commit
+design/unwanted-designs/
+
+# test / coverage artefacts
+coverage/
+playwright-report/
+test-results/

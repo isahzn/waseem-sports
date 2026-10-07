@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+@theme {
+  /* Brand greens (canonical design L10) */
+  --color-pine-950: #062418;
+  --color-pine-900: #0b3d2a;
+  --color-pine-800: #0f4530;
+  --color-pine-700: #08251a;
+
+  /* Golds */
+  --color-gold-600: #a98733;
+  --color-gold-400: #c7a14a;
+
+  /* Surfaces + text (dark, as shipped) */
+  --color-surface: #0a100d;
+  --color-card: #121a16;
+  --color-ink: #ecefe9;
+  --color-muted: #9aa89f;
+  --color-line: #22302a;
+
+  /* Ink-on-gold (buttons, badges, announcement) */
+  --color-bronze-ink: #2a2000;
+
+  /* Type */
+  --font-display: "Cormorant Garamond", Georgia, serif;
+  --font-sans: Manrope, system-ui, Arial, sans-serif;
+
+  /* Radii (2px controls, 4px cards — no pills) */
+  --radius-sm: 2px;
+  --radius-md: 4px;
+}
+
+:root {
+  --background: #0a100d;
+  --foreground: #ecefe9;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+/* Keep the mockup's visible gold focus ring (AUDIT L28) */
+:focus-visible {
+  outline: 3px solid #a98733;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
