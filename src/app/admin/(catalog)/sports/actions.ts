@@ -3,8 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/auth/requireAdmin";
-import { createClient } from "@/lib/supabase/server";
+import { adminDb, requireAdmin } from "@/lib/auth/requireAdmin";
 import { writeAudit } from "@/lib/catalog/audit";
 import {
   formBool,
@@ -32,7 +31,7 @@ function formValues(formData: FormData) {
 }
 
 async function slugTaken(
-  db: Awaited<ReturnType<typeof createClient>>,
+  db: ReturnType<typeof adminDb>,
   slug: string,
   ignoreId?: string,
 ): Promise<boolean> {
@@ -58,7 +57,7 @@ export async function createSport(
     return { error: "Check the highlighted fields.", fieldErrors: toFieldErrors(parsed.error) };
   }
 
-  const db = await createClient();
+  const db = adminDb();
   if (await slugTaken(db, parsed.data.slug)) {
     return { error: "That slug is already in use.", fieldErrors: { slug: ["This slug is already in use."] } };
   }
@@ -98,7 +97,7 @@ export async function updateSport(
     return { error: "Check the highlighted fields.", fieldErrors: toFieldErrors(parsed.error) };
   }
 
-  const db = await createClient();
+  const db = adminDb();
   if (await slugTaken(db, parsed.data.slug, id)) {
     return { error: "That slug is already in use.", fieldErrors: { slug: ["This slug is already in use."] } };
   }
@@ -129,7 +128,7 @@ async function setArchived(id: string, archived: boolean): Promise<ConfirmState>
   }
   if (!z.string().uuid().safeParse(id).success) return { error: "Invalid sport." };
 
-  const db = await createClient();
+  const db = adminDb();
   const { error } = await db
     .from("sports")
     .update({ deleted_at: archived ? new Date().toISOString() : null })

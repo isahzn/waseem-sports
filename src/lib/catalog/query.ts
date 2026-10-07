@@ -33,7 +33,9 @@ function sanitizeSearch(q: string): string {
 
 /**
  * Paginated admin list query over any catalog table.
- * Runs on the caller's client (user session → RLS enforced).
+ * Runs on whatever client the caller passes; every admin caller passes
+ * `adminDb()` (service role), because a shared-password session has no Supabase
+ * user for RLS to match. The `/admin/*` layout gate guards those reads.
  */
 export async function listTable<T>(
   db: UntypedClient,

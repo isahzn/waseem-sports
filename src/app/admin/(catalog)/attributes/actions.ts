@@ -3,8 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/auth/requireAdmin";
-import { createClient } from "@/lib/supabase/server";
+import { adminDb, requireAdmin } from "@/lib/auth/requireAdmin";
 import { writeAudit } from "@/lib/catalog/audit";
 import {
   attributeInput,
@@ -36,7 +35,7 @@ function formValues(formData: FormData) {
   };
 }
 
-type Db = Awaited<ReturnType<typeof createClient>>;
+type Db = ReturnType<typeof adminDb>;
 
 async function slugTaken(db: Db, slug: string, ignoreId?: string): Promise<boolean> {
   let query = db.from("attribute_definitions").select("id").eq("slug", slug);
@@ -61,7 +60,7 @@ export async function createAttribute(
     return { error: "Check the highlighted fields.", fieldErrors: toFieldErrors(parsed.error) };
   }
 
-  const db = await createClient();
+  const db = adminDb();
   if (await slugTaken(db, parsed.data.slug)) {
     return { error: "That slug is already in use.", fieldErrors: { slug: ["This slug is already in use."] } };
   }
@@ -95,7 +94,7 @@ export async function updateAttribute(
     return { error: "Check the highlighted fields.", fieldErrors: toFieldErrors(parsed.error) };
   }
 
-  const db = await createClient();
+  const db = adminDb();
   if (await slugTaken(db, parsed.data.slug, id)) {
     return { error: "That slug is already in use.", fieldErrors: { slug: ["This slug is already in use."] } };
   }
@@ -139,7 +138,7 @@ export async function deleteAttribute(
   const id = String(formData.get("id") ?? "");
   if (!z.string().uuid().safeParse(id).success) return { error: "Invalid attribute." };
 
-  const db = await createClient();
+  const db = adminDb();
   const { data: vals } = await db.from("product_attribute_values").select("product_id").eq("attribute_id", id).limit(1);
   if (vals && vals.length > 0) {
     return { error: "This attribute is used on products and cannot be deleted. Remove it from those products first." };

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/auth/requireAdmin";
+import { adminDb, requireAdmin } from "@/lib/auth/requireAdmin";
 import { writeAudit } from "@/lib/catalog/audit";
 import {
   formBool,
@@ -17,7 +17,6 @@ import {
 } from "@/lib/orders/schemas";
 import { logger } from "@/lib/security/logger";
 import { getReservePolicy, setSetting } from "@/lib/settings";
-import { createClient } from "@/lib/supabase/server";
 import type { ConfirmState } from "../_components/ConfirmSubmit";
 import type { ReservePolicyState } from "./ReservePolicyForm";
 import type { ShippingFormState } from "./ShippingForm";
@@ -85,7 +84,7 @@ function validate(formData: FormData): Validated {
   return { ok: true, data: parsed.data };
 }
 
-async function authorize(): Promise<{ userId: string; role: string } | null> {
+async function authorize(): Promise<{ userId: string | null; role: string } | null> {
   try {
     const admin = await requireAdmin();
     return { userId: admin.userId, role: admin.role };
@@ -104,7 +103,7 @@ export async function createShippingRule(
   const validated = validate(formData);
   if (!validated.ok) return validated.state;
 
-  const db = await createClient();
+  const db = adminDb();
   const { data, error } = await db.from("shipping_rules").insert(validated.data).select("id").single();
   if (error || !data) {
     logger.error("shipping rule create failed", { error: error?.message });
@@ -134,7 +133,7 @@ export async function updateShippingRule(
   const validated = validate(formData);
   if (!validated.ok) return validated.state;
 
-  const db = await createClient();
+  const db = adminDb();
   const { error } = await db.from("shipping_rules").update(validated.data).eq("id", id);
   if (error) {
     logger.error("shipping rule update failed", { error: error.message });
@@ -161,7 +160,7 @@ async function setActive(id: string, isActive: boolean): Promise<ConfirmState> {
   if (!admin) return { error: "Sign in required." };
   if (!uuidField.safeParse(id).success) return { error: "Invalid delivery rule." };
 
-  const db = await createClient();
+  const db = adminDb();
   const { error } = await db.from("shipping_rules").update({ is_active: isActive }).eq("id", id);
   if (error) {
     logger.error("shipping rule active toggle failed", { error: error.message });

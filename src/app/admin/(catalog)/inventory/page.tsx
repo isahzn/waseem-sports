@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { adminDb, requireAdminOrRedirect } from "@/lib/auth/requireAdmin";
 import { StatusBadge } from "../_components/ui";
 import { AdjustForm, type VariantOption } from "./AdjustForm";
 
@@ -13,11 +13,13 @@ export default async function InventoryPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  // Authorize before reading (see ProductsPage).
+  await requireAdminOrRedirect();
   const sp = await searchParams;
   const q = (first(sp.q) ?? "").trim().slice(0, 100);
   const lowOnly = first(sp.low) === "1";
 
-  const db = await createClient();
+  const db = adminDb();
   const { data: variants } = await db
     .from("product_variants")
     .select("id,name,product_id,products!inner(name)")

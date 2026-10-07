@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
+import { adminDb } from "@/lib/auth/requireAdmin";
 import { defaultContent, isSectionType, parseSectionContent, type SectionType } from "./sections";
 
 /**
@@ -137,9 +138,15 @@ export async function getLandingSections(): Promise<RenderedSection[]> {
   return sections.length > 0 ? sections : defaultLandingSections();
 }
 
-/** Admin: every page with its section count. */
+/**
+ * Admin: every page with its section count.
+ *
+ * Admin reads go through the service-role client — the public RLS policy
+ * exposes published pages only, so a draft would vanish from the editor. The
+ * `/admin/*` layout gate guards the caller.
+ */
 export async function listPages(): Promise<PageSummary[]> {
-  const db = await createClient();
+  const db = adminDb();
   const { data: pages } = await db
     .from("pages")
     .select("id,slug,title,status,updated_at,published_at")
@@ -162,7 +169,7 @@ export async function listPages(): Promise<PageSummary[]> {
 export async function getPageWithSections(
   id: string,
 ): Promise<{ page: AdminPage; sections: AdminSection[] } | null> {
-  const db = await createClient();
+  const db = adminDb();
   const { data: page } = await db
     .from("pages")
     .select("id,slug,title,status,seo_title,seo_description,published_at,updated_at")

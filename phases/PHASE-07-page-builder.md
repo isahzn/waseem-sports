@@ -69,6 +69,27 @@ New storefront routes beside the Phase 04/05 set: `/account` (order history + de
 
 New: `src/app/design.css`, `src/lib/cms/{sections,pages}.ts`, `src/lib/storefront/{journal,order-memory,saved-items}.ts`, `(store)/_components/{SectionList,Countdown,Hero,AddToCartButton,SaveButton}.tsx`, the 9 new storefront route folders, `(store)/not-found.tsx`, `src/app/admin/(catalog)/pages/**`, `scripts/seed-demo.mjs`, `public/assets/*`. Modified: `globals.css`, `layout.tsx`, `(store)/layout.tsx` and the whole Phase 04/05 storefront component set (header, footer, cards, listing, PDP, cart, checkout, order, tracking, CMS page route), `lib/storefront/{catalog,images,money}.ts`, `admin/layout.tsx`.
 
+### 9a. Follow-up, same day — the admin opens with a password, and two real bugs it exposed
+
+The owner then asked for `/admin` to open with **one password instead of an account** ("dont make an account, just make it use a password"). That is decision **D42**, implemented in `src/lib/auth/passcode.ts` (constant-time check, signed httpOnly session cookie, login rate-limited) with the env var `ADMIN_PASSCODE`; unsetting it restores the account login. Warnings live in `docs/SECURITY.md` and the pre-launch checklist, because the password is the entire admin surface and the local value is deliberately weak.
+
+Driving the gate with a real session immediately exposed two bugs that no amount of typechecking would have caught:
+
+1. **Every catalog admin write silently did nothing.** The actions wrote through the request-scoped Supabase client, whose writes are filtered by RLS policies keyed on `auth.uid()` — and a passcode session has no Supabase user. An UPDATE the policy filters out returns **zero rows and no error**, so the builder answered "Section moved." for a move that never happened. Fixed by `adminDb()` (service role, only after `requireAdmin()`), applied across all admin actions, pages and the two shared libs (`listPages`/`getPageWithSections`, the admin order queries) — while leaving the storefront reads on the anon client.
+2. **The admin layout gate did not protect its pages.** Next renders a layout and its page in parallel, so a page reads before the layout's `redirect()` applies, and the page's payload is streamed into the 307 response. Measured: an anonymous `GET /admin/pages/<id>` returned the **entire rendered builder** (sections, product ids, SEO fields) inside the redirect body — a leak that only existed because bug 1's fix made those reads service-role. Fixed with `requireAdminOrRedirect()` as the first statement of all 24 admin pages.
+
+**Verification added for this follow-up** (all re-run on the final tree):
+
+| Check | Result |
+|---|---|
+| Admin click-through (`.tmp/design/admin-session.mjs`) | **21/21** — wrong password rejected with no cookie issued; correct password opens `/admin`; the session cookie is httpOnly and invisible to JS; the builder renders the landing page's 5 sections; **moving a section reorders it and moving it back restores the order in the database**; hiding a section removes it from the live `/` and showing it brings it back; editing the trust strip's promises appears on `/` immediately; the revert restores both the database and the page; signing out closes the door again. Every mutation is reverted and asserted against the database, not just the DOM |
+| Anonymous admin leak check (`.tmp/design/admin-leak.mjs`) | **15/15** — every admin route (all 12 index screens plus a builder page, a product page and an order detail) answers 307 → `/admin/login` and carries **none** of 16 real product/page/order values in its body |
+| Storefront unchanged (`walk.mjs`, `replica-diff.mjs`) | **35/35** and **73/73** (262 properties, 0 divergent) |
+| Admin surface (`admin-probe.mjs`) | OK — body and headings compute to Manrope, outside `.ws` |
+| `tsc` / eslint / `next build` | 0 errors / 0 errors / exit 0 |
+
+**Still not proven here:** creating a new page through the UI (the builder was driven on the existing landing page — reorder, hide/show, content edit, publish state were all exercised, page creation was not), the preview-fidelity and XSS proofs this file defers, and the hero video's page-weight measurement.
+
 ### 9. Verification scripts (gitignored, re-runnable)
 
 `.tmp/design/replica-diff.mjs` (computed-style diff vs the mockup + backdrop/font/carousel/sticky-header checks + screenshots), `.tmp/design/walk.mjs` (route walk, `<h1>` assertion, console errors, gate checks, screenshots), `.tmp/design/admin-probe.mjs` (what the admin area computes for body/heading/button type — the check that caught the display-font leak), `.tmp/design/{ssrdom,hydrate}.mjs` (SSR-vs-DOM structure and hydration probes). Run them against a server built from the current tree (`PORT=3100 NODE_ENV=production node server.js`).

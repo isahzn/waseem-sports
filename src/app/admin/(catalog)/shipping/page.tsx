@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { adminDb, requireAdminOrRedirect } from "@/lib/auth/requireAdmin";
 import { formatLKR } from "@/lib/storefront/money";
 import { getReservePolicy } from "@/lib/settings";
 import type { Database } from "@/types/database";
@@ -28,7 +28,8 @@ function eta(rule: RuleRow): string {
 }
 
 export default async function ShippingPage() {
-  const db = await createClient();
+  await requireAdminOrRedirect();
+  const db = adminDb();
   const [rulesRes, policy] = await Promise.all([
     db.from("shipping_rules").select("*").order("sort_order").order("fee"),
     getReservePolicy(),

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { adminDb, requireAdminOrRedirect } from "@/lib/auth/requireAdmin";
 import { listTable } from "@/lib/catalog/query";
 import { listParamsSchema } from "@/lib/catalog/schemas";
 import type { Database } from "@/types/database";
@@ -27,10 +27,11 @@ export default async function AttributesPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  await requireAdminOrRedirect();
   const sp = await searchParams;
   const params = listParamsSchema.parse({ q: first(sp.q), page: first(sp.page) });
 
-  const db = await createClient();
+  const db = adminDb();
   const { rows, total, page, perPage } = await listTable<AttrRow>(db, "attribute_definitions", {
     q: params.q,
     page: params.page,

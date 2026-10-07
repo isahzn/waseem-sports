@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { requireAdminOrRedirect } from "@/lib/auth/requireAdmin";
 import { formatLKR } from "@/lib/storefront/money";
 import { getOrderDetail } from "@/lib/orders/queries";
 import { STATUS_LABELS, type OrderStatus } from "@/lib/orders/status";
@@ -44,6 +45,8 @@ function addressLines(address: Record<string, unknown>): string[] {
 }
 
 export default async function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  // Authorize before reading (see OrdersPage).
+  await requireAdminOrRedirect();
   const { id } = await params;
   const order = await getOrderDetail(id);
   if (!order) notFound();

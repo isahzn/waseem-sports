@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { adminDb, requireAdminOrRedirect } from "@/lib/auth/requireAdmin";
 import { listTable } from "@/lib/catalog/query";
 import { listParamsSchema } from "@/lib/catalog/schemas";
+import { formatLKR } from "@/lib/storefront/money";
 import type { Database } from "@/types/database";
 import {
   EmptyState,
@@ -22,15 +23,15 @@ function first(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
-function formatLKR(n: number): string {
-  return `Rs ${Number(n).toLocaleString("en-LK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
 export default async function ProductsPage({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  // Authorize before reading: the layout's redirect does not stop this page
+  // from running (Next renders them in parallel) and its payload would stream
+  // into the redirect response.
+  await requireAdminOrRedirect();
   const sp = await searchParams;
   const params = listParamsSchema.parse({
     q: first(sp.q),
@@ -39,7 +40,7 @@ export default async function ProductsPage({
     archived: first(sp.archived),
   });
 
-  const db = await createClient();
+  const db = adminDb();
   const { rows, total, page, perPage } = await listTable<ProductRow>(db, "products", {
     q: params.q,
     page: params.page,

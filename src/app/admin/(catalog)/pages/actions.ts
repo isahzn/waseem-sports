@@ -3,8 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/auth/requireAdmin";
-import { createClient } from "@/lib/supabase/server";
+import { adminDb, requireAdmin } from "@/lib/auth/requireAdmin";
 import { writeAudit } from "@/lib/catalog/audit";
 import { nameField, optionalText, slugField } from "@/lib/catalog/schemas";
 import { LANDING_SLUG, defaultLandingSections } from "@/lib/cms/pages";
@@ -16,8 +15,9 @@ import type { ConfirmState } from "../_components/ConfirmSubmit";
  * Landing-page / CMS builder actions (Phase 07).
  *
  * Every action authorises first (`requireAdmin`), validates its input with zod
- * or the section schemas, writes through the RLS-scoped client (the
- * `admin all` policies cover pages + page_sections) and records an audit row.
+ * or the section schemas, writes through the service-role client (`adminDb()` —
+ * a shared-password session has no `auth.uid()` for the RLS policies to match)
+ * and records an audit row.
  * Content is saved straight to the live `content` column; the page's own
  * `status` publishes it — that keeps the owner's mental model "edit, then
  * publish the page" without a second draft copy to reason about.
@@ -42,7 +42,7 @@ function back(pageId: string, message: string, kind: "ok" | "error" = "ok"): nev
 }
 
 async function pageIdOfSection(id: string): Promise<string | null> {
-  const db = await createClient();
+  const db = adminDb();
   const { data } = await db.from("page_sections").select("page_id").eq("id", id).maybeSingle();
   return data?.page_id ?? null;
 }
@@ -57,7 +57,7 @@ export async function addSection(formData: FormData): Promise<void> {
   const parsed = contentFromForm(type, formData);
   if (!parsed.ok) back(pageId, parsed.errors.join(" "), "error");
 
-  const db = await createClient();
+  const db = adminDb();
   const { data: last } = await db
     .from("page_sections")
     .select("sort_order")
@@ -90,7 +90,7 @@ export async function updateSection(formData: FormData): Promise<void> {
   const parsed = contentFromForm(type, formData);
   if (!parsed.ok) back(pageId, parsed.errors.join(" "), "error");
 
-  const db = await createClient();
+  const db = adminDb();
   const { error } = await db.from("page_sections").update({ content: parsed.content }).eq("id", id);
   if (error) {
     logger.error("section update failed", { error: error.message });
@@ -106,7 +106,7 @@ export async function toggleSection(formData: FormData): Promise<void> {
   const id = String(formData.get("section_id") ?? "");
   if (!uuidSchema.safeParse(id).success) back("", "That section does not exist.", "error");
 
-  const db = await createClient();
+  const db = adminDb();
   const { data: row } = await db.from("page_sections").select("page_id,is_visible").eq("id", id).maybeSingle();
   if (!row) back("", "That section does not exist.", "error");
 
@@ -128,7 +128,7 @@ export async function moveSection(formData: FormData): Promise<void> {
     back("", "That move is not valid.", "error");
   }
 
-  const db = await createClient();
+  const db = adminDb();
   const { data: row } = await db.from("page_sections").select("id,page_id,sort_order").eq("id", id).maybeSingle();
   if (!row) back("", "That section does not exist.", "error");
 
@@ -164,7 +164,7 @@ export async function deleteSection(_prev: ConfirmState, formData: FormData): Pr
   if (!uuidSchema.safeParse(id).success) return { error: "Invalid section." };
 
   const pageId = await pageIdOfSection(id);
-  const db = await createClient();
+  const db = adminDb();
   const { error } = await db.from("page_sections").delete().eq("id", id);
   if (error) {
     logger.error("section delete failed", { error: error.message });
@@ -182,7 +182,7 @@ export async function setPageStatus(formData: FormData): Promise<void> {
   const publish = String(formData.get("status") ?? "") === "published";
   if (!uuidSchema.safeParse(pageId).success) back("", "That page does not exist.", "error");
 
-  const db = await createClient();
+  const db = adminDb();
   const { error } = await db
     .from("pages")
     .update({ status: publish ? "published" : "draft", published_at: publish ? new Date().toISOString() : null })
@@ -214,7 +214,7 @@ export async function updatePageDetails(formData: FormData): Promise<void> {
     });
   if (!parsed.success) back(pageId, "Check the page details.", "error");
 
-  const db = await createClient();
+  const db = adminDb();
   const { error } = await db.from("pages").update(parsed.data).eq("id", pageId);
   if (error) {
     logger.error("page update failed", { error: error.message });
@@ -231,7 +231,7 @@ export async function createPage(formData: FormData): Promise<void> {
     .safeParse({ title: String(formData.get("title") ?? "").trim(), slug: String(formData.get("slug") ?? "").trim().toLowerCase() });
   if (!parsed.success) redirect(`/admin/pages?error=${encodeURIComponent("Check the page name and URL slug.")}`);
 
-  const db = await createClient();
+  const db = adminDb();
   const { data: clash } = await db.from("pages").select("id").eq("slug", parsed.data.slug).maybeSingle();
   if (clash) redirect(`/admin/pages?error=${encodeURIComponent("That URL slug is already in use.")}`);
 
@@ -257,7 +257,7 @@ export async function createPage(formData: FormData): Promise<void> {
  */
 export async function ensureLandingPage(): Promise<void> {
   const admin = await adminOrRedirect();
-  const db = await createClient();
+  const db = adminDb();
 
   const { data: existing } = await db.from("pages").select("id").eq("slug", LANDING_SLUG).maybeSingle();
   let pageId = existing?.id ?? null;

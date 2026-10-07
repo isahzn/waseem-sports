@@ -1,14 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { adminDb, requireAdminOrRedirect } from "@/lib/auth/requireAdmin";
 import { TaxonomyForm } from "../../_components/TaxonomyForm";
 import { updateBrand } from "../actions";
 
 export const metadata = { title: "Edit brand — Waseem Sports Admin" };
 
 export default async function EditBrandPage({ params }: { params: Promise<{ id: string }> }) {
+  await requireAdminOrRedirect();
   const { id } = await params;
-  const db = await createClient();
+  const db = adminDb();
   const { data: brand } = await db.from("brands").select("*").eq("id", id).single();
   if (!brand) notFound();
 

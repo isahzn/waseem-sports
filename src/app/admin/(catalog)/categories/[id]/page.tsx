@@ -1,14 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { adminDb, requireAdminOrRedirect } from "@/lib/auth/requireAdmin";
 import { CategoryForm } from "../CategoryForm";
 import { updateCategory } from "../actions";
 
 export const metadata = { title: "Edit category — Waseem Sports Admin" };
 
 export default async function EditCategoryPage({ params }: { params: Promise<{ id: string }> }) {
+  await requireAdminOrRedirect();
   const { id } = await params;
-  const db = await createClient();
+  const db = adminDb();
   const [catRes, sportsRes, parentsRes] = await Promise.all([
     db.from("categories").select("*").eq("id", id).single(),
     db.from("sports").select("id,name").is("deleted_at", null).order("sort_order").order("name"),

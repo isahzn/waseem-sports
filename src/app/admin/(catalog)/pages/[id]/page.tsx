@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { adminDb, requireAdminOrRedirect } from "@/lib/auth/requireAdmin";
 import { getPageWithSections } from "@/lib/cms/pages";
 import { SECTION_LABELS, SECTION_TYPES, defaultContent, sectionSummary } from "@/lib/cms/sections";
 import { StatusBadge } from "../../_components/ui";
@@ -34,13 +34,14 @@ export default async function PageBuilder({
   params: Promise<{ id: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  await requireAdminOrRedirect();
   const { id } = await params;
   const sp = await searchParams;
   const data = await getPageWithSections(id);
   if (!data) notFound();
   const { page, sections } = data;
 
-  const db = await createClient();
+  const db = adminDb();
   const { data: products } = await db
     .from("products")
     .select("id,name")

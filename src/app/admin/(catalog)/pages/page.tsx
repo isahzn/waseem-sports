@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { requireAdminOrRedirect } from "@/lib/auth/requireAdmin";
 import { listPages, LANDING_SLUG } from "@/lib/cms/pages";
 import { StatusBadge } from "../_components/ui";
 import { createPage, ensureLandingPage } from "./actions";
@@ -19,6 +20,7 @@ export default async function PagesAdmin({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  await requireAdminOrRedirect();
   const sp = await searchParams;
   const pages = await listPages();
   const landing = pages.find((p) => p.slug === LANDING_SLUG);

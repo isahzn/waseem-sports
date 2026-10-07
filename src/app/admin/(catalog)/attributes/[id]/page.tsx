@@ -1,14 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { adminDb, requireAdminOrRedirect } from "@/lib/auth/requireAdmin";
 import { AttributeForm } from "../AttributeForm";
 import { updateAttribute } from "../actions";
 
 export const metadata = { title: "Edit attribute — Waseem Sports Admin" };
 
 export default async function EditAttributePage({ params }: { params: Promise<{ id: string }> }) {
+  await requireAdminOrRedirect();
   const { id } = await params;
-  const db = await createClient();
+  const db = adminDb();
   const { data: attr } = await db.from("attribute_definitions").select("*").eq("id", id).single();
   if (!attr) notFound();
 

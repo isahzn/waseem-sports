@@ -1,12 +1,14 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { adminDb, requireAdminOrRedirect } from "@/lib/auth/requireAdmin";
 import { ProductForm } from "../ProductForm";
 import { createProduct } from "../actions";
 
 export const metadata = { title: "New product — Waseem Sports Admin" };
 
 export default async function NewProductPage() {
-  const db = await createClient();
+  // Authorize before reading (see ProductsPage).
+  await requireAdminOrRedirect();
+  const db = adminDb();
   const [sportsRes, catsRes, brandsRes] = await Promise.all([
     db.from("sports").select("id,name").is("deleted_at", null).order("name"),
     db.from("categories").select("id,name").is("deleted_at", null).order("name"),

@@ -3,8 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/auth/requireAdmin";
-import { createClient } from "@/lib/supabase/server";
+import { adminDb, requireAdmin } from "@/lib/auth/requireAdmin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/catalog/audit";
 import { logger } from "@/lib/security/logger";
@@ -40,9 +39,13 @@ type ActionOrder = {
   stock_committed: boolean;
 };
 
-/** Read the flags the stock rules depend on. RLS grants admins read access. */
+/**
+ * Read the flags the stock rules depend on. Service role: a shared-password
+ * admin session (D42) has no Supabase user for the RLS policies to match.
+ * The caller has already run `requireAdmin()`.
+ */
 async function loadOrderForAction(id: string): Promise<ActionOrder | null> {
-  const db = await createClient();
+  const db = adminDb();
   const { data } = await db
     .from("orders")
     .select("id,status,customer_phone,stock_reserved,stock_committed")

@@ -3,8 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/auth/requireAdmin";
-import { createClient } from "@/lib/supabase/server";
+import { adminDb, requireAdmin } from "@/lib/auth/requireAdmin";
 import { writeAudit } from "@/lib/catalog/audit";
 import {
   formBool,
@@ -19,7 +18,7 @@ import type { ConfirmState } from "../_components/ConfirmSubmit";
 import type { ProductFormState } from "./ProductForm";
 import type { VariantFormState } from "./VariantForm";
 
-type Db = Awaited<ReturnType<typeof createClient>>;
+type Db = ReturnType<typeof adminDb>;
 
 const uuid = z.string().uuid();
 
@@ -81,7 +80,7 @@ export async function createProduct(
     return { error: "Check the highlighted fields.", fieldErrors: toFieldErrors(parsed.error) };
   }
 
-  const db = await createClient();
+  const db = adminDb();
   const refError = await refsExist(db, parsed.data);
   if (refError) return { error: refError };
   if (await slugTaken(db, parsed.data.slug)) {
@@ -135,7 +134,7 @@ export async function updateProduct(
     return { error: "Check the highlighted fields.", fieldErrors: toFieldErrors(parsed.error) };
   }
 
-  const db = await createClient();
+  const db = adminDb();
   const refError = await refsExist(db, parsed.data);
   if (refError) return { error: refError };
   if (await slugTaken(db, parsed.data.slug, id)) {
@@ -167,7 +166,7 @@ async function setArchived(id: string, archived: boolean): Promise<ConfirmState>
   }
   if (!uuid.safeParse(id).success) return { error: "Invalid product." };
 
-  const db = await createClient();
+  const db = adminDb();
   const patch = archived
     ? { status: "archived", deleted_at: new Date().toISOString() }
     : { status: "draft", deleted_at: null };
@@ -228,7 +227,7 @@ export async function createVariant(
     return { error: "Check the highlighted fields.", fieldErrors: toFieldErrors(parsed.error) };
   }
 
-  const db = await createClient();
+  const db = adminDb();
   const { data: variant, error } = await db
     .from("product_variants")
     .insert({ ...parsed.data, product_id: productId })
@@ -254,7 +253,7 @@ export async function toggleVariantActive(formData: FormData): Promise<void> {
   const to = String(formData.get("to") ?? "") === "true";
   if (!uuid.safeParse(id).success || !uuid.safeParse(productId).success) return;
 
-  const db = await createClient();
+  const db = adminDb();
   // The default variant cannot be deactivated while it is the only variant.
   if (!to) {
     const { count } = await db.from("product_variants").select("id", { count: "exact", head: true }).eq("product_id", productId).is("deleted_at", null).eq("is_active", true);
@@ -288,7 +287,7 @@ export async function deleteVariant(
   const variantId = uuid.safeParse(id).success ? id : null;
   if (!variantId) return { error: "Invalid variant." };
 
-  const db = await createClient();
+  const db = adminDb();
   const { data: row } = await db.from("product_variants").select("product_id").eq("id", variantId).single();
   if (!row) return { error: "Invalid variant." };
   const productId = row.product_id as string;
@@ -324,7 +323,7 @@ export async function saveAttributeValues(
   }
   if (!uuid.safeParse(productId).success) return { error: "Invalid product." };
 
-  const db = await createClient();
+  const db = adminDb();
   const { data: defs } = await db.from("attribute_definitions").select("id,slug,input_type").eq("is_variant_option", false);
   const rows: { product_id: string; attribute_id: string; value_text: string }[] = [];
   for (const def of defs ?? []) {

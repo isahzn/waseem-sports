@@ -1,10 +1,13 @@
 import Link from "next/link";
+import { requireAdminOrRedirect } from "@/lib/auth/requireAdmin";
 import { ShippingForm } from "../ShippingForm";
 import { createShippingRule } from "../actions";
 
 export const metadata = { title: "New delivery rule — Waseem Sports Admin" };
 
-export default function NewShippingRulePage() {
+export default async function NewShippingRulePage() {
+  await requireAdminOrRedirect();
+
   return (
     <main>
       <Link href="/admin/shipping" className="text-sm text-muted hover:text-ink">

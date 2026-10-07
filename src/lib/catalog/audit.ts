@@ -3,7 +3,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { logger } from "@/lib/security/logger";
 
 export type AuditEntry = {
-  actor: string;
+  /** `auth.users` id of the admin, or null for a shared-password session (D42). */
+  actor: string | null;
   action: string;
   entity?: string;
   entityId?: string;

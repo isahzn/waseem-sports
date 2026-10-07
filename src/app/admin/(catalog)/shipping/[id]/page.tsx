@@ -1,17 +1,18 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { adminDb, requireAdminOrRedirect } from "@/lib/auth/requireAdmin";
 import { ShippingForm } from "../ShippingForm";
 import { updateShippingRule } from "../actions";
 
 export const metadata = { title: "Edit delivery rule — Waseem Sports Admin" };
 
 export default async function EditShippingRulePage({ params }: { params: Promise<{ id: string }> }) {
+  await requireAdminOrRedirect();
   const { id } = await params;
   if (!z.string().uuid().safeParse(id).success) notFound();
 
-  const db = await createClient();
+  const db = adminDb();
   const { data: rule } = await db.from("shipping_rules").select("*").eq("id", id).maybeSingle();
   if (!rule) notFound();
 

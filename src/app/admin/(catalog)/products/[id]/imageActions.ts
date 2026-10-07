@@ -3,8 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/auth/requireAdmin";
-import { createClient } from "@/lib/supabase/server";
+import { adminDb, requireAdmin } from "@/lib/auth/requireAdmin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/catalog/audit";
 import { logger } from "@/lib/security/logger";
@@ -18,7 +17,7 @@ export async function setPrimaryImage(formData: FormData): Promise<void> {
   const productId = String(formData.get("product_id") ?? "");
   if (!uuid.safeParse(id).success || !uuid.safeParse(productId).success) return;
 
-  const db = await createClient();
+  const db = adminDb();
   const { error: clearErr } = await db.from("product_images").update({ is_primary: false }).eq("product_id", productId);
   if (clearErr) {
     logger.error("image primary clear failed", { error: clearErr.message });
@@ -38,7 +37,7 @@ export async function deleteImage(formData: FormData): Promise<void> {
   const productId = String(formData.get("product_id") ?? "");
   if (!uuid.safeParse(id).success || !uuid.safeParse(productId).success) return;
 
-  const db = await createClient();
+  const db = adminDb();
   const { data: img } = await db.from("product_images").select("storage_path").eq("id", id).eq("product_id", productId).single();
   if (!img) return;
 

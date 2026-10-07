@@ -1,10 +1,12 @@
 import Link from "next/link";
+import { requireAdminOrRedirect } from "@/lib/auth/requireAdmin";
 import { TaxonomyForm } from "../../_components/TaxonomyForm";
 import { createBrand } from "../actions";
 
 export const metadata = { title: "New brand — Waseem Sports Admin" };
 
-export default function NewBrandPage() {
+export default async function NewBrandPage() {
+  await requireAdminOrRedirect();
   return (
     <main>
       <Link href="/admin/brands" className="text-sm text-muted hover:text-ink">

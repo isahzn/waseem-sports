@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { requireAdminOrRedirect } from "@/lib/auth/requireAdmin";
 import { getDashboardData } from "@/lib/orders/queries";
 import { formatLKR } from "@/lib/storefront/money";
 
@@ -14,6 +15,7 @@ const SECTIONS = [
 ];
 
 export default async function AdminDashboardPage() {
+  await requireAdminOrRedirect();
   const data = await getDashboardData();
 
   const tiles = [

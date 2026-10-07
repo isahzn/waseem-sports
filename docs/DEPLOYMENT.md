@@ -55,9 +55,13 @@ contract revision before the first deploy).
 ## Setup order
 
 1. Create GitHub repo (private). Push code.
-2. Create Supabase project(s). Apply migrations via CLI. Create the first
-   owner: sign up in Supabase Auth, then insert into `admin_users`
-   (role `owner`) using SQL as a one-off documented step.
+2. Create Supabase project(s). Apply migrations via CLI, then `seed.sql`. An
+   **owner account is no longer required to reach `/admin`**: setting
+   `ADMIN_PASSCODE` (+ `ADMIN_SESSION_SECRET`) opens the admin area with one
+   password (D42). Prefer an account when more than one person needs access, or
+   when the audit trail must name who did what: sign up in Supabase Auth, then
+   insert into `admin_users` (role `owner`) using SQL as a one-off documented
+   step.
 3. Configure Supabase Auth: site URL, redirect URLs (prod + preview), email
    templates, password rules. Password-reset mail goes through the Supabase
    mailer or an HTTPS-API email vendor (no SMTP from GoDaddy) — VERIFY limits.
@@ -76,7 +80,10 @@ contract revision before the first deploy).
 ## Pre-launch checklist
 
 Env vars set; DB connected over HTTPS; storage upload works; owner login +
-password-reset email works; domain + HTTPS; COD order end-to-end; stock
+password-reset email works; **`ADMIN_PASSCODE` is either removed or replaced
+with a long random value** (`openssl rand -base64 24`) — the value shipped in
+`.env` for local development is deliberately weak and must never be a launch
+value, because it is the whole admin area (D42); domain + HTTPS; COD order end-to-end; stock
 decrements correctly; notifications send (or are disabled cleanly);
 WAHA VPS paired and reachable (or notifications queued, never lost); error
 pages; **backups enabled AND a restore rehearsed**; security phase signed off;

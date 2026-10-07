@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { adminDb } from "@/lib/auth/requireAdmin";
 import { hashTrackingToken, tokensMatch } from "./tracking";
 import type { AdminOrderFilters } from "./schemas";
 import { REVENUE_STATUSES, type OrderStatus } from "./status";
@@ -9,8 +10,10 @@ import { REVENUE_STATUSES, type OrderStatus } from "./status";
  * Order reads.
  *  * Storefront checkout reads shipping rules with the anon client (RLS
  *    exposes active rules only).
- *  * Admin reads use the session client, so the RLS admin-read policies stay
- *    the second layer behind `requireAdmin()` in the layout.
+ *  * Admin reads use the service-role client (`adminDb()`): RLS only exposes
+ *    orders to a session it can identify, and a shared-password admin session
+ *    (D42) has no Supabase user. The `/admin/*` layout gate guards these reads
+ *    and every mutation re-checks with `requireAdmin()`.
  *  * Tracking reads are service-role because `orders` is deliberately not
  *    anon-readable; the token hash is the capability.
  */
@@ -100,7 +103,7 @@ const ORDER_COLUMNS =
   "id,order_number,status,payment_status,payment_method,currency,subtotal,shipping_fee,total,customer_name,customer_phone,placed_at,shipping_method,stock_reserved,stock_committed";
 
 /** Item counts for a set of orders (one extra query, no N+1 per row). */
-async function itemCounts(db: Awaited<ReturnType<typeof createClient>>, orderIds: string[]) {
+async function itemCounts(db: ReturnType<typeof adminDb>, orderIds: string[]) {
   const counts = new Map<string, number>();
   if (orderIds.length === 0) return counts;
   const { data } = await db.from("order_items").select("order_id,quantity").in("order_id", orderIds);
@@ -112,7 +115,7 @@ async function itemCounts(db: Awaited<ReturnType<typeof createClient>>, orderIds
 export async function listOrders(
   filters: AdminOrderFilters,
 ): Promise<{ orders: OrderSummary[]; total: number; page: number; perPage: number }> {
-  const db = await createClient();
+  const db = adminDb();
   const page = Math.min(500, Math.max(1, filters.page ?? 1));
   const from = (page - 1) * ORDERS_PER_PAGE;
 
@@ -145,7 +148,7 @@ export async function listOrders(
 
 /** One order with items snapshot and status timeline. */
 export async function getOrderDetail(id: string): Promise<OrderDetail | null> {
-  const db = await createClient();
+  const db = adminDb();
   const { data, error } = await db
     .from("orders")
     .select(`${ORDER_COLUMNS},customer_email,notes,shipping_address`)
@@ -180,7 +183,7 @@ export async function getOrderDetail(id: string): Promise<OrderDetail | null> {
 /** Count of orders waiting to be confirmed (admin nav badge). */
 export async function getNewOrderCount(): Promise<number> {
   try {
-    const db = await createClient();
+    const db = adminDb();
     const { count } = await db.from("orders").select("id", { count: "exact", head: true }).eq("status", "new");
     return count ?? 0;
   } catch {
@@ -204,7 +207,7 @@ export type DashboardData = {
  * the upgrade path if that ever stops being true.
  */
 export async function getDashboardData(): Promise<DashboardData> {
-  const db = await createClient();
+  const db = adminDb();
   const now = Date.now();
   const since30 = new Date(now - 30 * 24 * 3600 * 1000).toISOString();
   const startOfToday = new Date(new Date(now).setHours(0, 0, 0, 0)).toISOString();

@@ -3,8 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/auth/requireAdmin";
-import { createClient } from "@/lib/supabase/server";
+import { adminDb, requireAdmin } from "@/lib/auth/requireAdmin";
 import { writeAudit } from "@/lib/catalog/audit";
 import {
   categoryInput,
@@ -33,7 +32,7 @@ function formValues(formData: FormData) {
   };
 }
 
-type Db = Awaited<ReturnType<typeof createClient>>;
+type Db = ReturnType<typeof adminDb>;
 
 async function slugTaken(db: Db, slug: string, ignoreId?: string): Promise<boolean> {
   let query = db.from("categories").select("id").eq("slug", slug);
@@ -91,7 +90,7 @@ export async function createCategory(
     return { error: "Check the highlighted fields.", fieldErrors: toFieldErrors(parsed.error) };
   }
 
-  const db = await createClient();
+  const db = adminDb();
   const refError = await validateRefs(db, parsed.data.sport_id, parsed.data.parent_id, null);
   if (refError) return { error: refError };
   if (await slugTaken(db, parsed.data.slug)) {
@@ -127,7 +126,7 @@ export async function updateCategory(
     return { error: "Check the highlighted fields.", fieldErrors: toFieldErrors(parsed.error) };
   }
 
-  const db = await createClient();
+  const db = adminDb();
   const refError = await validateRefs(db, parsed.data.sport_id, parsed.data.parent_id, id);
   if (refError) return { error: refError };
   if (await slugTaken(db, parsed.data.slug, id)) {
@@ -154,7 +153,7 @@ async function setArchived(id: string, archived: boolean): Promise<ConfirmState>
   }
   if (!z.string().uuid().safeParse(id).success) return { error: "Invalid category." };
 
-  const db = await createClient();
+  const db = adminDb();
   const { error } = await db
     .from("categories")
     .update({ deleted_at: archived ? new Date().toISOString() : null })

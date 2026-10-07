@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { adminDb, requireAdminOrRedirect } from "@/lib/auth/requireAdmin";
 import { StatusBadge, productStatusTone } from "../../_components/ui";
 import { ConfirmSubmit } from "../../_components/ConfirmSubmit";
 import { ProductForm } from "../ProductForm";
@@ -25,8 +25,10 @@ function formatLKR(n: number | null): string {
 }
 
 export default async function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  // Authorize before reading (see ProductsPage).
+  await requireAdminOrRedirect();
   const { id } = await params;
-  const db = await createClient();
+  const db = adminDb();
 
   const [prodRes, sportsRes, catsRes, brandsRes, variantsRes, imagesRes, attrDefsRes, attrValsRes, invRes] =
     await Promise.all([

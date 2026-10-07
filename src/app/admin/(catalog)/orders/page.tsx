@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { requireAdminOrRedirect } from "@/lib/auth/requireAdmin";
 import { formatLKR } from "@/lib/storefront/money";
 import {
   adminOrderFilters,
@@ -51,6 +52,10 @@ export default async function OrdersPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  // Authorize before reading: the layout's redirect does not stop this page
+  // from running (Next renders them in parallel) and its payload would stream
+  // into the redirect response.
+  await requireAdminOrRedirect();
   const sp = await searchParams;
   const filters: AdminOrderFilters = adminOrderFilters.parse({
     q: first(sp.q),
