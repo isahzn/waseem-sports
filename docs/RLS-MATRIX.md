@@ -3,6 +3,23 @@
 Test file: `supabase/tests/01_rls_matrix.sql` (exit 0). Spot checks below were
 read back as tables, not just exit codes.
 
+## Update 2026-10-07 — what changed under these results
+
+- **Storage:** the `product-media` bucket now exists and is **public-read** (Phase 04;
+  holds `products/demo-NN.jpg` + `-thumb` derivatives from `scripts/seed-demo.mjs` and
+  `originals/design-extract-*.jpg`). Public read is intentional — product photos are
+  public assets and uploads go through the server. The bucket's write policies have not
+  been re-tested as anon since it was created.
+- **Admin reads/writes no longer ride on RLS (D43).** Admin screens and catalogue
+  actions now use the service-role client (`adminDb()`) and every admin page calls
+  `requireAdminOrRedirect()` before it reads; a layout redirect alone did not stop the
+  page from running, which leaked admin data into a 307 body. So RLS is what protects the
+  **anon/storefront** surface (everything above), while the **admin** surface is guarded
+  by `requireAdmin()` / `requireAdminOrRedirect()`. Both layers are still in place — this
+  only changes which one carries the admin screens.
+
+Everything below is the 2026-10-06 record and still stands as written.
+
 ## Reads as anon — all return 0 rows
 
 | Table | anon rows |
@@ -50,8 +67,12 @@ item count stayed 1 — no duplicate order, no duplicate items.
 
 ## Not proven here (see owning phase)
 
-- Logged-in non-admin reads (needs a real user — no admin user exists yet;
-  create one per DEPLOYMENT.md step 2, then re-run §1 as that role).
+- Logged-in non-admin reads (needs a real user — **still no admin user exists**;
+  create one per DEPLOYMENT.md step 2, then re-run §1 as that role). Since D43 the
+  admin screens no longer depend on the admin-read policies, so this gap is about the
+  policy record rather than admin access — but a non-admin *account* is still the thing
+  that proves the policies separate staff from owner.
 - Authenticated (non-admin) write attempts beyond function privileges.
-- Storage-bucket RLS (no buckets exist yet — Phase 04).
-- `pg_cron`/`pg_net` availability (V4 — Phase 06).
+- Storage-bucket RLS: the bucket now exists (public-read — see the update above), but
+  its write policies have not been re-tested as anon.
+- `pg_cron`/`pg_net` availability (V4 — Phase 06, not started).

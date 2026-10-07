@@ -1,6 +1,6 @@
 # Database
 
-Source of truth: `supabase/migrations/0001_init.sql` (**hardened in Phase 00**, 2026-10-06 — parsed with libpg_query, NOT yet run against a real Supabase project. PHASE 02 must apply and test it; from first apply, never edit it in place again).
+Source of truth: `supabase/migrations/` — `0001_init.sql` (**hardened in Phase 00**, 2026-10-06, parsed with libpg_query), `0002_*` and `0003_publish_page.sql`. **All applied to the linked dev project** (Phase 02, 2026-10-06) and `supabase/seed.sql` applied 2026-10-07; TypeScript types generated at `src/types/database.ts`. `0001` was never applied anywhere before Phase 02, so Phase 00 could still edit it in place (D25) — that door is now shut: every further change is a new migration.
 
 ## Tables (group -> purpose)
 - **Access/config:** `admin_users` (role: owner/admin/staff/developer), `store_settings` (jsonb key/values; keys starting `public.` readable by storefront).
@@ -8,7 +8,7 @@ Source of truth: `supabase/migrations/0001_init.sql` (**hardened in Phase 00**, 
 - **Products:** `products` (incl. `compare_at_price`, `promo` jsonb, `published_at`, generated `search_tsv`), `product_variants` (options jsonb keyed by attribute slug, nullable price override, SKU), `product_images` (optional variant link, alt text, provenance incl. `license_note`), `attribute_definitions` + `product_attribute_values` (owner-defined specs).
 - **Inventory:** `inventory` (on_hand, reserved, threshold, `track_inventory` — false means always sellable; the stock functions skip such variants entirely), `inventory_movements` (ledger, `order_id` FK → `orders`), view `variant_availability` (security-definer public projection of **only** `(product_id, variant_id, status)` for active variants of published, non-deleted products; untracked variants report `in_stock`).
 - **Orders:** `orders` (incl. `stock_reserved`/`stock_committed` flags, `shipping_method`), `order_items` (snapshot), `order_status_history`, `payment_transactions`, `webhook_events`, `notifications` (outbox), `shipping_rules`.
-- **CMS:** `pages` (homepage = slug `home`; incl. `layout`, `og_image_path`), `page_sections` (type + live `content` + `draft_content`).
+- **CMS:** `pages` (homepage = slug `home`; incl. `layout`, `og_image_path`), `page_sections` (type + live `content` + `draft_content`). **What the builder actually uses (D37, 2026-10-07):** sections are written to the live `content` column and published by the page's `status`, so `draft_content` and the `publish_page()` RPC exist in the schema but are not used by the UI — a draft/publish pair per section was deliberately not built.
 - **Ops:** `audit_logs`.
 
 ## Why it's shaped this way
@@ -28,12 +28,12 @@ Source of truth: `supabase/migrations/0001_init.sql` (**hardened in Phase 00**, 
 | Cancelled / payment failed | `adjust_order_stock(id,'release')` | reserved -= q |
 | Shipped | `adjust_order_stock(id,'commit')` | on_hand -= q, reserved -= q |
 | Owner manual change | `admin_adjust_stock(variant, delta, 'manual_adjust', note)` (service-role; server calls after `requireAdmin` + audit) | on_hand +/- with ledger row |
-Which of the first two applies is DECISION D2 (`cod.reserve_stock_on`). Card orders: reserve at creation, release if payment fails/expires (expiry job needed in PHASE 8).
+Which of the first two applies is DECISION D2 (`cod.reserve_stock_on`), and the RPC reads it from settings rather than taking it as an argument. Card orders: reserve at creation, release if payment fails/expires (expiry job needed in PHASE 8).
 
-## Things the agent must still do in PHASE 02
-1. Apply migration to a fresh Supabase project (local via CLI preferred).
-2. Generate TS types (`supabase gen types`) into `src/types/database.ts`.
-3. Write SQL tests: concurrent last-unit purchase, concurrent same-`idempotency_key` `place_order` (must return one filled order, no raw `23505`), malformed-input named errors (`BAD_ITEM`, `BAD_CUSTOMER`, `UNAVAILABLE`, …), `variant_availability` hiding unpublished/deleted products, RLS as anon/authenticated non-admin/admin for every table (incl. proving anon-key admins **cannot** write `orders`/`inventory`/`payment_transactions` directly).
-4. Add `pgTAP` or scripted tests (the manual-adjust function `admin_adjust_stock` already exists — test its guards: bad reason, negative stock, reserved invariant).
-5. Add an attribute-filter search RPC if plain queries prove slow. Check `EXPLAIN` on catalog list + search.
-6. Review: should `orders.customer_phone` index stay? (privacy vs lookup) — decide with the user.
+## PHASE 02 follow-up list — executed 2026-10-06, status per item
+1. **Done.** Migrations applied to the linked dev project (`0001` + `0002` + `0003_publish_page`). 2026-10-07: `supabase/seed.sql` applied here too — an environment is only "set up" once the migrations **and** the seed are in (D35).
+2. **Done.** `src/types/database.ts` is generated and the app typechecks against it.
+3. **Done.** Concurrent last-unit purchase (one winner, `INSUFFICIENT_STOCK` for the loser, no orphan row), idempotency replay, `commit` math and the negative-stock rejection were all proven live — results in `docs/RLS-MATRIX.md`; the SQL test file is `supabase/tests/01_rls_matrix.sql`. RLS was checked as anon for reads (0 rows), writes (`42501`) and function execution (`EXECUTE = false`); the authenticated non-admin half still needs a real user.
+4. **Partly done.** Scripted SQL tests cover the matrix and the stock race. `admin_adjust_stock`'s own guards (bad reason, negative stock, reserved invariant) are **not** separately recorded as tested — treat them as unproven and cover them when that panel is next touched.
+5. **Open.** No attribute-filter search RPC was added and no `EXPLAIN` pass is recorded; the catalog has not shown a slow-query problem at the current catalogue size (11 products). Revisit with real data.
+6. **Decided 2026-10-06:** the `orders.customer_phone` index stays (D31 — fast support lookup for a single shop).

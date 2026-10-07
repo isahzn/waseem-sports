@@ -7,6 +7,18 @@
 base64 decode). Every claim below carries a file + line. Screenshots were not
 saved (owner decision 4.11).
 
+> **Status 2026-10-07 — read this as a Phase 00 measurement record.** Later
+> phases acted on its "must be built" findings: the 11 photos were extracted and
+> seeded into the catalogue (`docs/EXTRACTED-PHOTOS.md`, `scripts/seed-demo.mjs`),
+> `Logo.png` and `Background.mp4` are wired in from `public/assets/`, and the
+> storefront is now built to the mockup — a verbatim port of its stylesheet,
+> measured against it route by route. The mockup's fake or broken interactions
+> in §5 (readonly search, in-memory cart, fabricated order numbers, the dead
+> countdown, the invented admin figures) were replaced by real ones, and §7's
+> conflicts are resolved as recorded in `docs/DECISIONS.md` — including that
+> payments stay COD-only until a provider is chosen (D3). The measurements
+> below are unchanged.
+
 ## 1. The four designs and why C is canonical
 
 | # | File(s) | Palette / type | Scope | Verdict |

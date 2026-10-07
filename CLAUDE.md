@@ -10,7 +10,7 @@ This is a real business's store. Not a toy.
 4. Stock changes ONLY via the SQL functions in `supabase/migrations` (`place_order`, `adjust_order_stock`). Never `read stock -> compare -> write` in TS.
 5. Authorize on the server for every admin action (server actions / route handlers) AND keep RLS on. Hiding a button is not authorization.
 6. Service-role key is server-only. `NEXT_PUBLIC_` only for genuinely public values.
-7. No universal/master password. Real auth via Supabase Auth + `admin_users` roles.
+7. Real auth is Supabase Auth + `admin_users` roles, and there is **no universal/master password** — with one recorded, deliberate exception: `/admin` currently opens with the single shared `ADMIN_PASSCODE` because the owner asked for it (D42, 2026-10-07). It is temporary by definition — the password is the whole admin surface, so before the site is public it must be a long random value or removed (`docs/SECURITY.md`, `docs/DEPLOYMENT.md` pre-launch checklist). Never add a second such shortcut; unset the variable to go back to the account login.
 8. Don't invent APIs, pricing, provider behavior. If it needs current docs, write `VERIFY: <what>` and stop to ask the user to research it.
 9. Unknown business rule => it's in `docs/DECISIONS.md`. Build a config point, don't pick silently.
 10. No n8n. No full POS. No multi-tenant. No custom payment gateway. No LLM required for core flows.
@@ -27,7 +27,7 @@ The owner has approved subagent use in this project. You may spawn subagents for
 - DB changes = new migration file, never edit applied migrations, never hand-edit prod.
 - Log server-side details; show users generic errors. Never log secrets, passwords, card data.
 - External services (WhatsApp/SMS/email/payment/image search) can fail: the order must still exist and stay consistent.
-- After each task: run typecheck, lint, tests; list what you verified and what you didn't.
+- After each task: run `npm run typecheck`, `npm run lint` and `npm run build`, and list what you verified and what you didn't. **There is no test runner installed** — "tests" here means the purpose-built headless-Chrome harnesses and the SQL/RPC suites (`supabase/tests/*.sql`, plus the gitignored `.tmp/`). Do not write "tests pass" for a runner that does not exist.
 - Stop and ask the user at every `DECISION REQUIRED` or `VERIFY`.
 - When the owner says a value must be customizable in the admin, record it in the owning phase file as a dated amendment the same session — never leave it as a chat-only promise.
 

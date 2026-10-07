@@ -216,7 +216,7 @@ Notes and cautions:
 - **Tailwind CSS v4** (CSS-first `@theme`), **TypeScript strict**, **zod** at every server boundary.
 - `@supabase/supabase-js` + `@supabase/ssr`; **supabase-js over HTTPS only** — no `pg`, Prisma or Drizzle (they need ports GoDaddy blocks).
 - `sharp` for upload re-encode (bundled with Next.js).
-- **Vitest** (unit) + **Playwright** (e2e) + SQL tests for stock concurrency.
+- **Vitest** (unit) + **Playwright** (e2e) + SQL tests for stock concurrency. _Corrected 2026-10-07: Vitest and Playwright were **never installed**; the project has no test runner. Verification is `npm run typecheck` / `npm run lint` / `npm run build` plus the SQL/RPC suites (`supabase/tests/`, the gitignored `.tmp/`)._
 - **VERIFY at PHASE 01 install time:** exact current latest patch versions, and that nothing in the stack needs a blocked outbound port (the only allowed egress is 80/443).
 
 ### 5.5 Rate limiting (DECISION D8) — Postgres table
@@ -350,7 +350,7 @@ Carried into `docs/DECISIONS.md` on execution. "VERIFY" = needs research/docs be
 | V2 | VERIFY | **Opening hours** (the two mockup sets contradict each other and neither is verified) | Storefront footer/contact |
 | V3 | VERIFY | GoDaddy **deploy contract revision** and the exact `start`/`PORT`/`0.0.0.0` requirements before the first deploy | PHASE 01 |
 | V4 | VERIFY | `pg_cron` + `pg_net` availability on the chosen Supabase plan | PHASE 06 |
-| V5 | VERIFY | Current latest patch versions for Next.js 16, Tailwind v4, `@supabase/ssr`, Vitest, Playwright; and that no dependency needs a blocked outbound port | PHASE 01 install |
+| V5 | VERIFY | Current latest patch versions for Next.js 16, Tailwind v4, `@supabase/ssr`, Vitest, Playwright; and that no dependency needs a blocked outbound port | PHASE 01 install. **Closed 2026-10-07:** versions pinned (Next 16.3.8, React 19.2.8, Tailwind v4, zod 3.24, sharp 0.34 — `docs/ARCHITECTURE.md`), no dependency needs a blocked port, and Vitest/Playwright were never installed (no test runner exists) |
 | V6 | VERIFY | Whether GoDaddy's CDN caches `next/image` optimized responses, and whether multi-instance scaling would desync the ISR/revalidate cache | PHASE 01/04 |
 | V7 | VERIFY | OCR approach for the crop feature (browser-side vs server-side), including dependency size, accuracy on real product photos, and cost — the owner chose behaviour, not implementation | Before PHASE 04 builds it |
 | V8 | VERIFY | Whether `Logo.png` is the real brand logo, and whether `Background.mp4` is the same clip as the inlined hero video | PHASE 04 header/assets |

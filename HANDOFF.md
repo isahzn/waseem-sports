@@ -12,18 +12,18 @@
 
 ## Where we are right now — start here
 
-**Phase to start at: PHASE 03 — PHASE 02 EXECUTED 2026-10-06.**
+> This status section is maintained by the agent; the brief below it is the client's and is not rewritten.
 
-**Where we left off (execution session: 2026-10-06):** Phase 02 done and proven live — migrations `0001` (FK-order fix) + `0002` + new `0003_publish_page` applied, last-unit race won by exactly one buyer (`INSUFFICIENT_STOCK` for the loser), idempotency + commit math + negative-stock rejection + full RLS matrix verified, DB types generated, demo seed applied (see `phases/PHASE-02-database.md` § Execution record + `docs/RLS-MATRIX.md`). First owner creation still pending. Still awaiting owner input: spec §11 answers + the two feature specs; they do not gate Phase 03.
+**Status 2026-10-07 (later sessions). Phases 00–05 are built and proven, and PHASE 07's front end plus the landing-page CMS builder are built. The next phase is PHASE 06 (notifications).**
 
 | | |
 |---|---|
-| ✅ **Done (Phase 00)** | `docs/AUDIT.md` · `docs/DESIGN-TOKENS.md` · design reorganisation into `design/unwanted-designs/` · package repairs (`.gitignore`, `design/README.md`, `AGENTS.md` title, `FOLDER_STRUCTURE.md`) · `docs/DATABASE.md` corrections + `docs/DECISIONS.md` D4/D8/D10/D17–D31 · hosting rewrite GoDaddy (ARCHITECTURE/DEPLOYMENT/DESIGN/FOLDER_STRUCTURE/README) · migration hardening + `seed.sql` contacts · crop-feature record (D20 + PHASE 04) · two commits |
-| ❓ **Needs owner** | Shop email (V1 — not findable online, owner must supply), opening times (V2 — only "open daily" signal found), checkout fields (D12), out-of-stock/low-stock (D11/D13), extra contact candidates (D32: landline, alt WhatsApp, 88 Main St) + approval of `specs/whatsapp-waha-spec.md`, `specs/product-image-pipeline-spec.md`, and the §5 recommendations. Decided 2026-10-06: logo/video real (V8), keep `WS` prefix, reserve-on-placed + admin toggle (D2), admin-managed shipping (D5) |
-| ➡️ **Next action** | Start PHASE 03 (`phases/PHASE-03-cms.md`): catalog + CMS admin (sports, categories, brands, products, pages); create the first owner first (DEPLOYMENT.md step 2); owner still owes spec §11 answers + feature-spec approvals (non-blocking) |
-| 🚧 **Also still open** | The whole of PHASE 01 onward. The MVP is PHASES 0–5 (catalog, cart, COD checkout, orders, admin); do not start 6–11 before those are solid |
-
-Full detail — the 13-step status table, the decisions already locked, the failed attempts and the guardrails — is in **[`SESSION-HANDOFF.md`](SESSION-HANDOFF.md)**.
+| ✅ **Built and verified** | **00** audit + tokens · **01** foundation · **02** schema applied to the linked Supabase project and proven live (last-unit race, idempotency, commit math, full RLS matrix — `docs/RLS-MATRIX.md`) · **03** catalog + CMS admin · **04** storefront · **05** checkout → COD order → tokenized tracking + admin orders/shipping/dashboard · **07 (front end only)** a measured 1:1 replica of the canonical design, a multi-page storefront, `/admin` as its own area, and the landing-page section builder. Records: each `phases/PHASE-0N-*.md` § Execution record, decisions D1–D43 in `docs/DECISIONS.md`, the seed `scripts/seed-demo.mjs`. |
+| ⚠️ **Temporary, by owner request** | `/admin` opens with one shared password (`ADMIN_PASSCODE`, D42) instead of an account. It is the whole admin surface (prices, stock, orders, publishing) — **before the site is public it must be a long random value or removed** (`docs/SECURITY.md`, `docs/DEPLOYMENT.md` pre-launch checklist). A passcode session also records `actor: null` in `audit_logs`, so the trail cannot name who acted; create the owner account per `DEPLOYMENT.md` step 2 when that matters. |
+| ❓ **Needs owner** | Shop email (V1 — not findable online), opening hours (V2 — only an "open daily" signal found), checkout fields (D12), out-of-stock/low-stock (D11/D13), real delivery rules entered in `/admin/shipping` before launch (D5 — deliberately nothing is seeded), and approval of `specs/whatsapp-waha-spec.md` + `specs/product-image-pipeline-spec.md`. Decided earlier and holding: logo/video are real, `WS` prefix, reserve-on-placed with an admin toggle (D2), admin-managed shipping (D5) |
+| ➡️ **Next action** | Start **PHASE 06** (`phases/PHASE-06-notifications.md`): the outbox rows already exist for every order event. Two loose ends first, in this order: finish the admin click-through in a browser — **creating a page through the UI** (add/reorder/hide/delete sections, publish, check `/`), then orders (confirm → processing → shipped → delivered, cancel, manual stock), shipping-rule CRUD, the D2 toggle and the dashboard. Then PHASE 07's remaining half (preview fidelity/XSS proofs) and PHASE 08 onward. |
+| 🚧 **Still open** | PHASE 06 and 08–11. The MVP was PHASES 0–5, which are done; do not start 08–09 before the admin pass is finished. |
+| 🧭 **Where the real detail lives** | [`SESSION-HANDOFF.md`](SESSION-HANDOFF.md) — per-session record, failed attempts, guardrails, next steps. Read it before this file's status table. |
 
 ---
 

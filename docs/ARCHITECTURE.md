@@ -12,6 +12,8 @@ SMTP are unreachable from GoDaddy — every external call must be HTTPS over 80/
 ```
 Deploying code never touches data. Data lives in Supabase and has its own backups.
 
+**Admin sign-in as built (2026-10-07):** two supported paths — a Supabase Auth account (D42's alternative, the real one) and, currently, a single shared `ADMIN_PASSCODE` (D42, owner's request, temporary — see `docs/SECURITY.md`). Either way the admin surface itself is gated server-side per D43 below.
+
 ## Hosting constraints (GoDaddy Node.js Hosting — DECISION D10)
 - The app is a **persistent Node.js 22 process**, not serverless. Listen on `process.env.PORT`, bind `0.0.0.0`.
 - **Egress allowlist: HTTP:80, HTTPS:443, GoDaddy managed MySQL.** No `pg`/Prisma/Drizzle direct connections (they need blocked ports); **only `supabase-js` (`@supabase/supabase-js` + `@supabase/ssr`) over HTTPS** — PostgREST, Auth, Storage and RPC all work over 443.
@@ -20,19 +22,21 @@ Deploying code never touches data. Data lives in Supabase and has its own backup
 - Included by default: automatic HTTPS, Cloudflare-backed CDN, WAF, encrypted env vars, per-deploy malware/vulnerability scan.
 
 ## Tech choices (VERIFY current versions/docs before installing)
-- Next.js **16** App Router + TypeScript strict (15 hits EOL 21 Oct 2026). Tailwind **v4 CSS-first `@theme`** (tokens: `docs/DESIGN-TOKENS.md`).
+- Next.js **16** App Router + TypeScript strict + Tailwind **v4 CSS-first `@theme`** (tokens: `docs/DESIGN-TOKENS.md`). Installed 2026-10-07: Next `16.3.8`, React `19.2.8`, Tailwind `v4`, zod `3.24`, sharp `0.34`, `@supabase/ssr` `0.5` / `supabase-js` `2.47`.
 - `@supabase/supabase-js` + `@supabase/ssr` for auth cookies (HTTPS only — see above). zod for validation.
 - sharp (image re-encode/resize) — Next already bundles/uses it; confirm.
 - Rate limiting: **Postgres table** (DECISION D8) — no new vendor, no new port. VERIFY exact limits in PHASE 01 + configure Supabase Auth limits.
-- Tests: Vitest (unit), Playwright (e2e), SQL tests for stock concurrency.
+- **No test runner is installed.** The gates are `npm run typecheck`, `npm run lint` and `npm run build`, plus purpose-built headless-Chrome harnesses and SQL/RPC suites (the gitignored `.tmp/` plus `supabase/tests/01_rls_matrix.sql`). Vitest and Playwright were planned in Phase 00 (`specs/phase-00-fix-spec.md` §5.4) and never added — install one before any claim that "tests pass" in CI.
 - No other frameworks unless justified in writing.
 
-## Two Supabase clients (never mix)
+## Three Supabase clients (never mix) — updated 2026-10-07
 | Client | Key | Where | Used for |
 |---|---|---|---|
-| `supabase/browser` | anon | client components | almost nothing (maybe auth UI) |
-| `supabase/server` | anon + user cookies | server components/actions | storefront reads (RLS), admin reads/writes as the logged-in admin |
-| `supabase/admin` | service role | `server-only` modules | place order, webhooks, notifications, audit logs, tracking lookup |
+| `src/lib/supabase/browser.ts` | anon | client components | almost nothing (auth UI only) |
+| `src/lib/supabase/server.ts` | anon + user cookies | server components/actions | storefront reads under RLS; the Supabase **account** session |
+| `src/lib/supabase/admin.ts` | service role | `server-only` modules | order/stock RPCs, webhooks, notifications, audit logs, tracking lookup, and **all admin reads/writes** |
+
+**Why admin reads/writes are on the service role (D43):** the RLS admin policies key off `auth.uid()`, and a shared-password session has no user row — with the request-scoped client the admin writes were silently filtered to **zero rows while the action reported success**. So the split is: RLS protects the **anon/storefront** surface, and the **admin** surface is protected by `requireAdmin()` on every action plus `requireAdminOrRedirect()` as the first statement of **every** admin page (a layout `redirect()` does not stop its page — Next renders them in parallel, and the page payload streamed into the 307 body leaked the page to anonymous requests). Rule 5 still stands: authorize on the server **and** keep RLS on.
 
 ## Request flows
 **Admin edit:** form -> server action -> zod validate -> `requireAdmin(role)` -> Supabase write -> `audit()` -> `revalidateTag()` -> storefront sees it.
@@ -66,7 +70,7 @@ Outbox pattern: business code only inserts `notifications` rows (`dedupe_key` pr
 WhatsApp sends via self-hosted **WAHA on a VPS** (DECISION D4/D28, `specs/whatsapp-waha-spec.md`); SMS/email send via HTTPS-API vendors. Failure policy: retry WhatsApp with backoff, then alert the admin in the dashboard — no email fallback (D27).
 
 ## Content / CMS
-Page = row in `pages`; sections = rows in `page_sections` with `type` + JSON `content`. A registry `sections/registry.ts` maps `type -> {schema (zod), Component, editor form}`. Storefront renders the same components for preview (draft_content) and live (content). Publishing copies `draft_content -> content`. New section type = add to registry (code); new page/section instance = data only. Dynamic routes: `/[...slug]` for CMS pages, `/` renders page `home`.
+Page = row in `pages`; sections = rows in `page_sections` with `type` + validated JSON `content` (a zod schema per type in `src/lib/cms/sections.ts`). The storefront renders each type as a component from `src/app/(store)/_components/SectionList.tsx`, with the design's own composition as the fallback when the page has no sections — so a broken or empty CMS can never blank the landing page. **As built (D37):** the builder writes straight to the live `content` column and publishing is the page's `status`; the `draft_content` column and the `publish_page()` RPC exist in the schema but no UI uses them (a per-section draft/publish pair was deliberately not built). Section types shipped: `hero`, `category_tiles`, `product_grid`, `promo_strip`, `promo_countdown`, `rich_text` — taken from the canonical design, never invented. New section type = code (schema + component + fields); new page or section instance = data only. Routes: `/` renders page `home`, other CMS pages sit at `/pages/[slug]`.
 
 ## Image recommendation (Phase 9)
 Server-only route, admin-only, rate-limited, cached. Builds queries from product name/brand/category (deterministic templates). Provider adapter (DECISION D6, VERIFY API). Prefer allowlisted manufacturer/distributor domains. Returns ~3 candidates with `sourceUrl`, thumbnail, dimensions, and a rights warning. Owner picks -> optional import: server fetches with SSRF protections (https only, block private/link-local IPs, size/time limits, re-encode with sharp), stores provenance in `product_images.source_*`. Failure => manual upload still works. No LLM.
@@ -75,4 +79,4 @@ Server-only route, admin-only, rate-limited, cached. Builds queries from product
 Storefront: server-render with `revalidateTag` on admin writes (tags: `products`, `product:{slug}`, `sports`, `categories`, `page:{slug}`, `settings`). Never cache anything containing orders/PII. Pagination on all lists (cursor or page/limit, max page size enforced). VERIFY whether GoDaddy's CDN caches `next/image` responses and whether multi-instance scaling desyncs the ISR cache (V6) — record the answer in PHASE 01.
 
 ## SEO
-`generateMetadata` per route, canonical URLs, `sitemap.ts`/`robots.ts` built from DB, JSON-LD Product/BreadcrumbList. URLs: `/products/[slug]`, `/sports/[slug]`, `/categories/[slug]`, `/brands/[slug]`, `/search`. Filter/sort params -> `noindex` or canonical to base to avoid duplicate content.
+`generateMetadata` per route, canonical URLs, `sitemap.ts`/`robots.ts` built from DB (`src/app/sitemap.ts`, `src/app/robots.ts`), JSON-LD Product/BreadcrumbList. URLs as built: `/product/[slug]`, `/sport/[slug]`, `/category/[slug]`, `/brand/[slug]`, `/pages/[slug]`, `/blog` + `/blog/[slug]`, `/shop`, `/search`, `/track`, `/order/[number]`. The replica's remaining storefront routes (`/about`, `/contact`, `/faq`, `/store-locator`, `/wishlist`, `/compare`, `/cart`, `/checkout`, `/account`) exist as server-rendered pages too; `/account` is device-local order memory, not the customer accounts the brief excludes (D9). Filter/sort params -> `noindex` or canonical to base to avoid duplicate content.
