@@ -62,11 +62,16 @@ body {
   font: 16px/1.55 Manrope, system-ui, Arial, sans-serif;
 }
 
-/* brand typography + focus ring: the mockup sets these globally */
-h1,
-h2,
-h3,
-.logo {
+/* Brand typography + focus ring. The mockup sets the display font on h1-h3 and
+   .logo globally, but this file is unlayered, so a global rule here beats every
+   Tailwind utility in the admin area no matter which classes it sets. Scoped to
+   the storefront for that reason: `/admin` is a separate area and styles its own
+   headings. (Tailwind's preflight already zeroes heading margins and resets
+   links/buttons, so `a`, `button` and `:focus-visible` stay global.) */
+.ws h1,
+.ws h2,
+.ws h3,
+.ws .logo {
   font-family: "Cormorant Garamond", Georgia, serif;
   font-weight: 600;
   margin: 0;
