@@ -8,9 +8,11 @@ export default async function StaticPage({ params }: { params: Promise<{ slug: s
   if (!page) notFound();
 
   return (
-    <main className="mx-auto max-w-3xl">
-      <h1 className="font-display text-4xl font-bold">{page.title}</h1>
-      <p className="mt-4 whitespace-pre-line text-muted">{page.body}</p>
+    <main>
+      <h1 style={{ fontSize: "40px" }}>{page.title}</h1>
+      <div className="box mt-3">
+        <p className="whitespace-pre-line">{page.body}</p>
+      </div>
     </main>
   );
 }

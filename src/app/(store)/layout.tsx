@@ -5,19 +5,32 @@ import { Header } from "./_components/Header";
 import { Footer } from "./_components/Footer";
 import { CartDrawer } from "./_components/CartDrawer";
 
+/**
+ * Storefront shell, exactly as the canonical design: a fixed video backdrop
+ * behind everything, then announcement bar → sticky header → main → footer.
+ * `#bg-video` is decorative (aria-hidden, pointer-events:none) and is hidden
+ * entirely under prefers-reduced-motion by design.css.
+ */
 export default async function StoreLayout({ children }: { children: React.ReactNode }) {
   const [nav, info] = await Promise.all([getNav(), getShopInfo()]);
 
   return (
-    <CartProvider>
-      <Suspense>
-        <Header sports={nav.sports} announcement={info["public.announcement"] ?? null} />
-      </Suspense>
-      <div className="flex min-h-[60vh] flex-col">
-        <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">{children}</div>
+    <div className="ws">
+      <div id="bg-video" aria-hidden="true">
+        <video autoPlay muted loop playsInline preload="metadata">
+          <source src="/assets/bg.mp4" type="video/mp4" />
+        </video>
+        <div className="scrim" />
       </div>
-      <Footer sports={nav.sports} brands={nav.brands} info={info} />
-      <CartDrawer />
-    </CartProvider>
+
+      <CartProvider>
+        <Suspense>
+          <Header announcement={info["public.announcement"] ?? null} />
+        </Suspense>
+        {children}
+        <Footer sports={nav.sports} categories={nav.categories} brands={nav.brands} info={info} />
+        <CartDrawer />
+      </CartProvider>
+    </div>
   );
 }

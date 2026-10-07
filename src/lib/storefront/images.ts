@@ -27,6 +27,11 @@ export type StoreImage = {
   sort_order: number;
 };
 
+/** Public URL for a stored path (used by CMS sections that reference a photo). */
+export function publicImageUrl(path: string): string {
+  return `${base()}/${path.replace(/^\/+/, "")}`;
+}
+
 /** Card grid image: 400px thumb, explicit dimensions (no CLS). */
 export function cardImage(img: StoreImage): { src: string; width: number; height: number; alt: string } {
   return {

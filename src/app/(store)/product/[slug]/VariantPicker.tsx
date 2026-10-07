@@ -1,19 +1,34 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { heroImage } from "@/lib/storefront/images";
 import { formatLKR } from "@/lib/storefront/money";
 import type { ProductDetail } from "@/lib/storefront/catalog";
 import { useCart } from "../../_components/CartProvider";
 
+/** Design fallback mark (.mk) for a product with no photo. */
+function monogram(name: string): string {
+  const words = name
+    .replace(/[^A-Za-z0-9 ]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+  if (words.length === 0) return "WS";
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return (words[0][0] + words[1][0]).toUpperCase();
+}
+
 /**
- * PDP purchase panel: gallery + variant picker + quantity + add to cart.
- * Price comes from the selected variant (override or base) — the client never
- * invents a price; checkout re-prices server-side via priceCart (Phase 05).
- * Out-of-stock variants are disabled with a clear label (D11).
+ * PDP purchase panel, laid out exactly like the canonical design: `.two` with
+ * the `.img.big` gallery on the left and the buy box on the right (44px title,
+ * 34px price, `.chip` options, `.q` quantity stepper, `.btn` add / `.btn.alt`
+ * buy now). Price comes from the selected variant (override or base) — the
+ * client never invents a price; checkout re-prices server-side via priceCart
+ * (Phase 05). Out-of-stock variants stay disabled with a clear label (D11).
  */
 export function VariantPicker({ product }: { product: ProductDetail }) {
   const { add } = useCart();
+  const router = useRouter();
   const activeVariants = useMemo(
     () => product.variants.filter((v) => v.is_active),
     [product],
@@ -37,30 +52,34 @@ export function VariantPicker({ product }: { product: ProductDetail }) {
   const current = gallery.find((i) => i.id === imageId) ?? gallery[0];
   const hero = current ? heroImage(current) : null;
 
-  const selectable = variant && variant.status !== "out_of_stock";
+  const selectable = Boolean(variant) && variant.status !== "out_of_stock";
   const maxQty = variant ? (variant.tracked ? Math.min(100, Math.max(1, variant.available)) : 100) : 1;
   const optionEntries = variant ? Object.entries(variant.options ?? {}) : [];
 
+  function buyNow() {
+    if (!variant || !selectable) return;
+    add(variant.id, qty);
+    router.push("/cart");
+  }
+
   return (
-    <div className="grid gap-8 md:grid-cols-2">
+    <div className="two">
       <div>
         {hero ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={hero.src}
-            width={hero.width}
-            height={hero.height}
-            alt={current?.alt_text || product.name}
-            fetchPriority="high"
-            className="aspect-square w-full rounded-md border border-line object-cover"
-          />
+          <div className="img big" style={{ borderRadius: 4 }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={hero.src} alt={current?.alt_text || product.name} fetchPriority="high" />
+          </div>
         ) : (
-          <div role="img" aria-label={`${product.name} — no photo yet`} className="flex aspect-square w-full items-center justify-center rounded-md border border-line bg-pine-950">
-            <span className="text-muted">No photo yet</span>
+          <div className="img big" style={{ borderRadius: 4 }}>
+            <span className="mk" aria-hidden="true">
+              {monogram(product.name)}
+            </span>
           </div>
         )}
+
         {gallery.length > 1 && (
-          <ul aria-label="Product photos" className="mt-3 grid grid-cols-5 gap-2">
+          <ul aria-label="Product photos" className="cats" style={{ padding: "12px 0" }}>
             {gallery.map((img) => (
               <li key={img.id}>
                 <button
@@ -68,18 +87,18 @@ export function VariantPicker({ product }: { product: ProductDetail }) {
                   onClick={() => setImageId(img.id)}
                   aria-pressed={current?.id === img.id}
                   aria-label={`View photo${img.alt_text ? `: ${img.alt_text}` : ""}`}
-                  className={`overflow-hidden rounded-sm border ${current?.id === img.id ? "border-gold-600" : "border-line"}`}
+                  className={current?.id === img.id ? "chip on" : "chip"}
+                  style={{ padding: 0, overflow: "hidden", width: 72 }}
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={`${process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""}/storage/v1/object/public/product-media/${img.storage_path.replace(/(\.[a-z]+)$/, "-thumb$1")}`}
-                    alt=""
-                    loading="lazy"
-                    decoding="async"
-                    width={400}
-                    height={400}
-                    className="aspect-square w-full object-cover"
-                  />
+                  <span className="img" style={{ width: "100%" }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={`${process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""}/storage/v1/object/public/product-media/${img.storage_path.replace(/(\.[a-z]+)$/, "-thumb$1")}`}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </span>
                 </button>
               </li>
             ))}
@@ -88,91 +107,119 @@ export function VariantPicker({ product }: { product: ProductDetail }) {
       </div>
 
       <div>
-        {product.brand_name && <p className="text-sm text-muted">{product.brand_name}</p>}
-        <h1 className="mt-1 font-display text-4xl font-bold">{product.name}</h1>
-        <p className="mt-3 text-3xl font-bold" aria-live="polite">
+        {product.brand_name && <p className="sold" style={{ margin: 0 }}>{product.brand_name}</p>}
+        <h1 style={{ fontSize: "44px", marginTop: 4 }}>{product.name}</h1>
+        {(product.category_name || product.sport_name) && (
+          <p className="sold" style={{ margin: "6px 0 0" }}>
+            {[product.category_name, product.sport_name].filter(Boolean).join(" · ")}
+          </p>
+        )}
+        <p className="pr" style={{ fontSize: "34px", margin: "12px 0 4px" }} aria-live="polite">
           {formatLKR(price)}
           {product.compare_at_price !== null && Number(product.compare_at_price) > Number(product.base_price) && (
-            <s className="ml-3 text-lg font-normal text-muted">{formatLKR(product.compare_at_price)}</s>
+            <s>{formatLKR(product.compare_at_price)}</s>
           )}
         </p>
-        <p className="mt-2 text-sm">
+
+        <p className="sold" style={{ margin: 0 }}>
           {variant && variant.status === "out_of_stock" ? (
-            <span className="font-semibold text-red-300">Out of stock</span>
+            <b style={{ color: "var(--au)" }}>Out of stock</b>
           ) : variant && variant.status === "low_stock" ? (
-            <span className="font-semibold text-gold-400">Low stock — only {variant.available} left</span>
+            <b style={{ color: "var(--gl)" }}>Low stock — only {variant.available} left</b>
           ) : (
-            <span className="text-muted">In stock</span>
+            <span>In stock</span>
           )}
         </p>
 
         {activeVariants.length > 1 && (
-          <fieldset className="mt-5">
-            <legend className="font-semibold">Choose an option</legend>
-            <ul className="mt-2 flex flex-wrap gap-2">
+          <fieldset style={{ border: 0, padding: 0, margin: "16px 0 0" }}>
+            <legend style={{ fontWeight: 600, padding: 0 }}>Choose an option</legend>
+            <div className="cats" style={{ padding: "8px 0" }}>
               {activeVariants.map((v) => {
                 const oos = v.status === "out_of_stock";
                 return (
-                  <li key={v.id}>
-                    <button
-                      type="button"
-                      disabled={oos}
-                      onClick={() => {
-                        setVariantId(v.id);
-                        setQty(1);
-                        setImageId(null);
-                      }}
-                      aria-pressed={v.id === variant?.id}
-                      aria-label={oos ? `${v.name} — out of stock` : v.name}
-                      title={oos ? "Out of stock" : v.name}
-                      className={`rounded-sm border px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 disabled:line-through ${
-                        v.id === variant?.id ? "border-gold-600 bg-gold-600 text-bronze-ink" : "border-line"
-                      }`}
-                    >
-                      {v.name}
-                    </button>
-                  </li>
+                  <button
+                    key={v.id}
+                    type="button"
+                    disabled={oos}
+                    onClick={() => {
+                      setVariantId(v.id);
+                      setQty(1);
+                      setImageId(null);
+                    }}
+                    aria-pressed={v.id === variant?.id}
+                    aria-label={oos ? `${v.name} — out of stock` : v.name}
+                    title={oos ? "Out of stock" : v.name}
+                    className={v.id === variant?.id ? "chip on" : "chip"}
+                    style={oos ? { opacity: 0.5, cursor: "not-allowed", textDecoration: "line-through" } : undefined}
+                  >
+                    {v.name}
+                  </button>
                 );
               })}
-            </ul>
+            </div>
           </fieldset>
         )}
 
         {optionEntries.length > 0 && (
-          <dl className="mt-4 grid grid-cols-2 gap-2 text-sm">
+          <dl className="sold" style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
             {optionEntries.map(([k, val]) => (
-              <div key={k} className="rounded-sm bg-card px-3 py-1.5">
-                <dt className="text-xs text-muted">{k}</dt>
-                <dd className="font-semibold">{val}</dd>
+              <div key={k}>
+                <dt style={{ fontSize: 12 }}>{k}</dt>
+                <dd style={{ margin: 0, fontWeight: 600, color: "var(--tx)" }}>{val}</dd>
               </div>
             ))}
           </dl>
         )}
 
-        <div className="mt-5 flex flex-wrap items-center gap-3">
-          <label className="flex items-center gap-2 text-sm">
-            <span className="font-semibold">Qty</span>
-            <input
-              type="number"
-              min={1}
-              max={maxQty}
-              value={qty}
-              onChange={(e) => setQty(Math.min(maxQty, Math.max(1, Number(e.target.value) || 1)))}
-              disabled={!selectable}
-              className="w-20 rounded-sm border border-line bg-surface px-3 py-2"
-            />
-          </label>
+        <div style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <span className="q" style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+            <button
+              type="button"
+              aria-label="Reduce quantity"
+              disabled={!selectable || qty <= 1}
+              onClick={() => setQty((q) => Math.max(1, q - 1))}
+            >
+              −
+            </button>
+            <span aria-live="polite" style={{ minWidth: 18, textAlign: "center", fontWeight: 600 }}>
+              {qty}
+            </span>
+            <button
+              type="button"
+              aria-label="Increase quantity"
+              disabled={!selectable || qty >= maxQty}
+              onClick={() => setQty((q) => Math.min(maxQty, q + 1))}
+            >
+              +
+            </button>
+          </span>
+
           <button
             type="button"
-            disabled={!selectable || !variant}
-            onClick={() => variant && add(variant.id, qty)}
-            className="rounded-sm bg-gold-600 px-6 py-2.5 text-sm font-semibold text-bronze-ink disabled:cursor-not-allowed disabled:opacity-50"
+            className="btn"
+            disabled={!selectable}
+            style={{ opacity: selectable ? 1 : 0.5, cursor: selectable ? "pointer" : "not-allowed" }}
+            onClick={() => variant && selectable && add(variant.id, qty)}
           >
             {selectable ? "Add to cart" : "Out of stock"}
           </button>
+
+          <button
+            type="button"
+            className="btn alt"
+            disabled={!selectable}
+            style={{ opacity: selectable ? 1 : 0.5, cursor: selectable ? "pointer" : "not-allowed" }}
+            onClick={buyNow}
+          >
+            Buy now
+          </button>
         </div>
+
         {!selectable && (
-          <p className="mt-2 text-sm text-muted">This option is out of stock. Pick another above.</p>
+          <p className="sold" style={{ marginTop: 8 }}>
+            This option is out of stock. Pick another above.
+          </p>
         )}
       </div>
     </div>

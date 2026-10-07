@@ -38,6 +38,7 @@ export default async function CategoryPage({
       basePath={`/category/${slug}`}
       scope={{ category_id: cat.id }}
       searchParams={await searchParams}
+      activeCategorySlug={slug}
     />
   );
 }

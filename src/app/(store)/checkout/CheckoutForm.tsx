@@ -42,11 +42,7 @@ function makeIdempotencyKey(): string {
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="w-full rounded-sm bg-gold-600 px-5 py-3 font-semibold text-bronze-ink disabled:opacity-70"
-    >
+    <button type="submit" disabled={pending} className="btn mt-4">
       {pending ? "Placing your order…" : "Place order (cash on delivery)"}
     </button>
   );
@@ -55,7 +51,7 @@ function SubmitButton() {
 function FieldError({ errors }: { errors?: string[] }) {
   if (!errors?.length) return null;
   return (
-    <span role="alert" className="text-xs font-semibold text-red-300">
+    <span role="alert" className="block text-xs font-semibold text-red-300">
       {errors[0]}
     </span>
   );
@@ -71,8 +67,12 @@ function etaText(option: DeliveryOption): string | null {
   return option.estDaysMin !== null ? `about ${option.estDaysMin} days` : `about ${option.estDaysMax} days`;
 }
 
-const inputClass = "rounded-sm border border-line bg-surface px-3 py-2";
-
+/**
+ * Checkout, laid out exactly like the canonical design: a `.two` split of a
+ * fields `.box` and an "Order total" `.box`, with design-labelled inputs
+ * (`.f`). All pricing, idempotency, validation and server-action wiring is
+ * unchanged — this is the design's presentation of our real form.
+ */
 export function CheckoutForm({
   options,
   lines,
@@ -99,176 +99,162 @@ export function CheckoutForm({
   const estimate = selected ? subtotal + (freeOverApplied ? 0 : selected.fee) : subtotal;
 
   return (
-    <form action={formAction} className="grid gap-8 lg:grid-cols-3">
+    <form action={formAction} className="two">
       <input type="hidden" name="idempotency_key" value={idempotencyKey} />
 
-      <div className="flex flex-col gap-6 lg:col-span-2">
+      <div className="box">
         {state.error && (
-          <p role="alert" className="rounded-sm border border-red-900 bg-red-950 px-3 py-2 text-sm text-red-200">
+          <p role="alert" className="mb-4 rounded-sm border border-red-900 bg-red-950 px-3 py-2 text-sm text-red-200">
             {state.error}
           </p>
         )}
 
-        <section aria-labelledby="contact-heading" className="flex flex-col gap-3 rounded-md border border-line bg-card p-4">
-          <h2 id="contact-heading" className="font-display text-xl font-bold">
-            Your details
-          </h2>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-semibold">Name</span>
-            <input name="customer_name" required maxLength={120} autoComplete="name" className={inputClass} />
-            <FieldError errors={state.fieldErrors?.customer_name} />
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-semibold">Phone</span>
-            <input
-              name="customer_phone"
-              required
-              maxLength={30}
-              inputMode="tel"
-              autoComplete="tel"
-              placeholder="077 000 0000"
-              className={inputClass}
-            />
-            <span className="text-xs text-muted">We call this number to confirm your order.</span>
-            <FieldError errors={state.fieldErrors?.customer_phone} />
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-semibold">
-              Email <span className="font-normal text-muted">(optional)</span>
-            </span>
-            <input name="customer_email" type="email" maxLength={200} autoComplete="email" className={inputClass} />
-            <FieldError errors={state.fieldErrors?.customer_email} />
-          </label>
-        </section>
+        <h2 id="contact-heading">Your details</h2>
+        <label>
+          Name
+          <input name="customer_name" required maxLength={120} autoComplete="name" className="f" />
+          <FieldError errors={state.fieldErrors?.customer_name} />
+        </label>
+        <label>
+          Phone <span className="sold">(we call this to confirm your order)</span>
+          <input
+            name="customer_phone"
+            required
+            maxLength={30}
+            inputMode="tel"
+            autoComplete="tel"
+            placeholder="077 000 0000"
+            className="f"
+          />
+          <FieldError errors={state.fieldErrors?.customer_phone} />
+        </label>
+        <label>
+          Email <span className="sold">(optional)</span>
+          <input name="customer_email" type="email" maxLength={200} autoComplete="email" className="f" />
+          <FieldError errors={state.fieldErrors?.customer_email} />
+        </label>
 
-        <section aria-labelledby="address-heading" className="flex flex-col gap-3 rounded-md border border-line bg-card p-4">
-          <h2 id="address-heading" className="font-display text-xl font-bold">
-            Delivery address
-          </h2>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-semibold">Address</span>
-            <input name="address_line1" required maxLength={200} autoComplete="address-line1" className={inputClass} />
-            <FieldError errors={state.fieldErrors?.address_line1} />
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-semibold">
-              Address line 2 <span className="font-normal text-muted">(optional)</span>
-            </span>
-            <input name="address_line2" maxLength={200} autoComplete="address-line2" className={inputClass} />
-          </label>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="font-semibold">City / town</span>
-              <input name="city" required maxLength={100} autoComplete="address-level2" className={inputClass} />
-              <FieldError errors={state.fieldErrors?.city} />
-            </label>
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="font-semibold">
-                District <span className="font-normal text-muted">(optional)</span>
-              </span>
-              <input name="district" maxLength={100} autoComplete="address-level1" className={inputClass} />
-            </label>
-          </div>
-          <label className="flex flex-col gap-1 text-sm sm:max-w-40">
-            <span className="font-semibold">
-              Postal code <span className="font-normal text-muted">(optional)</span>
-            </span>
-            <input name="postal_code" maxLength={20} autoComplete="postal-code" className={inputClass} />
-          </label>
-        </section>
+        <h2 style={{ marginTop: 24 }}>Delivery address</h2>
+        <label>
+          Address
+          <input name="address_line1" required maxLength={200} autoComplete="address-line1" className="f" />
+          <FieldError errors={state.fieldErrors?.address_line1} />
+        </label>
+        <label>
+          Address line 2 <span className="sold">(optional)</span>
+          <input name="address_line2" maxLength={200} autoComplete="address-line2" className="f" />
+        </label>
+        <label>
+          City / town
+          <input name="city" required maxLength={100} autoComplete="address-level2" className="f" />
+          <FieldError errors={state.fieldErrors?.city} />
+        </label>
+        <label>
+          District <span className="sold">(optional)</span>
+          <input name="district" maxLength={100} autoComplete="address-level1" className="f" />
+        </label>
+        <label>
+          Postal code <span className="sold">(optional)</span>
+          <input name="postal_code" maxLength={20} autoComplete="postal-code" className="f" />
+        </label>
 
-        <fieldset className="flex flex-col gap-3 rounded-md border border-line bg-card p-4">
-          <legend className="px-1 font-display text-xl font-bold">Delivery</legend>
+        {/* role="group" keeps the radio group named by its visible heading; a
+            <legend> can't legally contain the design's h2. */}
+        <h2 id="delivery-heading" style={{ marginTop: 24 }}>
+          Delivery
+        </h2>
+        <div role="group" aria-labelledby="delivery-heading">
           {options.map((option) => {
             const free = option.freeOver !== null && subtotal >= option.freeOver;
             const eta = etaText(option);
             return (
-              <label key={option.id} className="flex cursor-pointer items-start gap-3 rounded-sm border border-line p-3">
-                <input
-                  type="radio"
-                  name="shipping_method"
-                  value={option.method}
-                  checked={method === option.method}
-                  onChange={() => setMethod(option.method)}
-                  className="mt-1"
-                />
-                <span className="flex-1 text-sm">
-                  <span className="block font-semibold">{option.name}</span>
-                  {eta && <span className="block text-xs text-muted">Arrives in {eta}</span>}
-                  {option.freeOver !== null && (
-                    <span className="block text-xs text-muted">Free over {formatLKR(option.freeOver)}</span>
-                  )}
+              <label key={option.id} className="row cursor-pointer">
+                <span className="flex flex-1 items-start gap-2.5">
+                  <input
+                    type="radio"
+                    name="shipping_method"
+                    value={option.method}
+                    checked={method === option.method}
+                    onChange={() => setMethod(option.method)}
+                    className="mt-1.5"
+                  />
+                  <span>
+                    <span className="nm">{option.name}</span>
+                    {eta && <span className="sold block">Arrives in {eta}</span>}
+                    {option.freeOver !== null && (
+                      <span className="sold block">Free over {formatLKR(option.freeOver)}</span>
+                    )}
+                  </span>
                 </span>
-                <span className="text-sm font-semibold">{free || option.fee === 0 ? "Free" : formatLKR(option.fee)}</span>
+                <b>{free || option.fee === 0 ? "Free" : formatLKR(option.fee)}</b>
               </label>
             );
           })}
           <FieldError errors={state.fieldErrors?.shipping_method} />
-        </fieldset>
+        </div>
 
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="font-semibold">
-            Order note <span className="font-normal text-muted">(optional)</span>
-          </span>
-          <textarea name="notes" rows={3} maxLength={500} className={inputClass} placeholder="Delivery instructions, preferred call time…" />
+        <label className="mt-6">
+          Order note <span className="sold">(optional)</span>
+          <textarea
+            name="notes"
+            rows={3}
+            maxLength={500}
+            className="f"
+            placeholder="Delivery instructions, preferred call time…"
+          />
           <FieldError errors={state.fieldErrors?.notes} />
         </label>
       </div>
 
-      <aside className="h-fit rounded-md border border-line bg-card p-4 lg:sticky lg:top-24">
-        <h2 className="font-display text-xl font-bold">Order summary</h2>
-        <ul className="mt-3 flex flex-col gap-3">
-          {lines.map((line) => (
-            <li key={line.variantId} className="flex gap-3 text-sm">
-              <span className="flex-1">
-                <span className="block font-semibold">{line.productName}</span>
-                <span className="block text-xs text-muted">
-                  {line.variantName} · {line.qty} × {formatLKR(line.unitPrice)}
-                </span>
+      <div className="box">
+        <h2>Order total</h2>
+
+        {lines.map((line) => (
+          <div className="row" key={line.variantId}>
+            <span>
+              <span className="nm">{line.productName}</span>
+              <span className="sold block">
+                {line.variantName} · {line.qty} × {formatLKR(line.unitPrice)}
               </span>
-              <span className="font-semibold">{formatLKR(line.unitPrice * line.qty)}</span>
-            </li>
-          ))}
-        </ul>
-        <dl className="mt-4 flex flex-col gap-1 border-t border-line pt-3 text-sm">
-          <div className="flex justify-between">
-            <dt>Subtotal</dt>
-            <dd className="font-semibold">{formatLKR(subtotal)}</dd>
+            </span>
+            <b>{formatLKR(line.unitPrice * line.qty)}</b>
           </div>
-          <div className="flex justify-between">
-            <dt>Delivery</dt>
-            <dd className="font-semibold" aria-live="polite">
-              {selected ? (freeOverApplied || selected.fee === 0 ? "Free" : formatLKR(selected.fee)) : "—"}
-            </dd>
-          </div>
-          <div className="mt-1 flex justify-between border-t border-line pt-2 text-base">
-            <dt className="font-semibold">Estimated total</dt>
-            <dd className="font-bold">{formatLKR(estimate)}</dd>
-          </div>
-        </dl>
-        <p className="mt-2 text-xs text-muted">
+        ))}
+
+        <div className="row">
+          <span>Subtotal</span>
+          <b>{formatLKR(subtotal)}</b>
+        </div>
+        <div className="row">
+          <span>Delivery</span>
+          <b aria-live="polite">
+            {selected ? (freeOverApplied || selected.fee === 0 ? "Free" : formatLKR(selected.fee)) : "—"}
+          </b>
+        </div>
+        <div className="row">
+          <span className="nm">Estimated total</span>
+          <b>{formatLKR(estimate)}</b>
+        </div>
+
+        <p className="sold my-4">
           The shop confirms the final total with the delivery charge when it confirms your order.
         </p>
 
-        <div className="mt-4 flex flex-col gap-3">
-          <SubmitButton />
-          <p className="text-xs text-muted">
-            Cash on delivery — pay the rider when your order arrives. No card details are taken online.
+        <SubmitButton />
+
+        <p className="sold my-4">
+          Cash on delivery — pay the rider when your order arrives. No card details are taken online.
+        </p>
+        <p className="sold my-4">
+          <Link href="/cart">Edit your cart</Link>
+        </p>
+        {contactPhone && (
+          <p className="sold my-4">
+            Something wrong? Call{" "}
+            <a href={`tel:${contactPhone.replace(/\s/g, "")}`}>{contactPhone}</a>.
           </p>
-          <Link href="/cart" className="text-xs text-muted underline">
-            Edit your cart
-          </Link>
-          {contactPhone && (
-            <p className="text-xs text-muted">
-              Something wrong? Call{" "}
-              <a href={`tel:${contactPhone.replace(/\s/g, "")}`} className="underline">
-                {contactPhone}
-              </a>
-              .
-            </p>
-          )}
-        </div>
-      </aside>
+        )}
+      </div>
     </form>
   );
 }

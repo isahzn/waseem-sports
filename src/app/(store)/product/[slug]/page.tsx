@@ -39,49 +39,60 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   };
 
   return (
-    <main className="flex flex-col gap-10">
+    <main>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
-      <nav aria-label="Breadcrumb" className="text-sm text-muted">
-        <Link href="/shop" className="hover:text-ink">Shop</Link>
+
+      <nav aria-label="Breadcrumb" className="sold" style={{ marginBottom: 12 }}>
+        <Link href="/shop">Back to shop</Link>
         {product.category_name && product.category_slug && (
           <>
-            {" / "}
-            <Link href={`/category/${product.category_slug}`} className="hover:text-ink">
-              {product.category_name}
-            </Link>
+            {" · "}
+            <Link href={`/category/${product.category_slug}`}>{product.category_name}</Link>
           </>
         )}
-        {" / "}
-        <span aria-current="page" className="text-ink">{product.name}</span>
+        {" · "}
+        <span aria-current="page">{product.name}</span>
       </nav>
 
       <VariantPicker product={product} />
 
       {product.description && (
-        <section aria-labelledby="desc" className="max-w-3xl">
-          <h2 id="desc" className="font-display text-2xl font-bold">About this product</h2>
-          <p className="mt-2 whitespace-pre-line text-muted">{product.description}</p>
+        <section aria-labelledby="desc">
+          <div className="sec">
+            <h2 id="desc">About this product</h2>
+          </div>
+          <div className="box">
+            <p style={{ margin: 0, whiteSpace: "pre-line" }}>{product.description}</p>
+          </div>
         </section>
       )}
 
       {product.specs.length > 0 && (
-        <section aria-labelledby="specs" className="max-w-3xl">
-          <h2 id="specs" className="font-display text-2xl font-bold">Specifications</h2>
-          <dl className="mt-3 overflow-hidden rounded-md border border-line">
-            {product.specs.map((s) => (
-              <div key={s.slug} className="grid grid-cols-2 border-b border-line last:border-0">
-                <dt className="bg-card px-4 py-2 text-sm text-muted">{s.name}</dt>
-                <dd className="px-4 py-2 text-sm font-semibold">{s.value}</dd>
-              </div>
-            ))}
-          </dl>
+        <section aria-labelledby="specs">
+          <div className="sec">
+            <h2 id="specs">Specifications</h2>
+          </div>
+          <div className="box tw">
+            <table>
+              <tbody>
+                {product.specs.map((s) => (
+                  <tr key={s.slug}>
+                    <th scope="row">{s.name}</th>
+                    <td>{s.value}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
       )}
 
       {related.length > 0 && (
         <section aria-labelledby="related">
-          <h2 id="related" className="font-display text-2xl font-bold">You may also like</h2>
-          <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-4">
+          <div className="sec">
+            <h2 id="related">You may also like</h2>
+          </div>
+          <div className="grid">
             {related.map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}

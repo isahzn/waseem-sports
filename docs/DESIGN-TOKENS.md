@@ -119,3 +119,20 @@ else `Manrope, system-ui, Arial, sans-serif` (L18).
 | Countdown promo | `.deal .cd` (dead in mockup) | `promo_countdown` | yes, if used |
 | Header / footer / announcement | `.top`, `header`, `footer` | **not sections** — `store_settings` (`public.*`) | yes |
 | PDP / cart / checkout / account / admin | routes, not content | code (DB-driven) | n/a |
+
+## Amendment — 2026-10-07 (what actually shipped)
+
+This document extracted the design's tokens; it is no longer the only source the
+storefront reads. **The shipped visual contract is `src/app/design.css`** — the
+mockup's own stylesheet ported verbatim and scoped under `.ws`, imported after
+Tailwind (`docs/DECISIONS.md` D36). Keep reading this file for the *measurements*
+(contrast table, type scale, source lines) and for §4's block → section-type map,
+but when this file and `design.css` disagree, `design.css` and the mockup win,
+and the way to prove a change is the computed-style diff in
+`.tmp/design/replica-diff.mjs` (6 routes, 262 properties, 0 divergent selectors).
+
+§4's proposed names are the ones that shipped — `hero`, `category_tiles`,
+`product_grid`, `promo_strip`, `promo_countdown` — plus `rich_text` for
+free-form copy. The `@theme` block in §1 is real and lives in
+`src/app/globals.css` alongside the design import; the storefront itself does
+not depend on those Tailwind utilities, the admin area does.

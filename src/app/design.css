@@ -1,0 +1,593 @@
+/*
+ * design.css — verbatim port of the canonical design's <style> block
+ * (design/waseem-sports-video.html, dark theme as shipped).
+ *
+ * Every rule is scoped under `.ws` — the class on the storefront layout root —
+ * so the admin and auth surfaces keep Tailwind's own resets and utilities
+ * (`.ws .grid` must never override Tailwind's `grid` utility inside /admin).
+ * Only the brand tokens, the type pairing and the focus ring stay global.
+ * Values are NOT reinterpreted: same hexes, sizes and radii as the mockup.
+ * Keep this file in sync with the mockup; it is the visual contract.
+ */
+
+:root {
+  --g: #0b3d2a;
+  --g2: #062418;
+  --au: #a98733;
+  --gl: #c7a14a;
+  --prc: #0b3d2a;
+  --bg: #f3f4f1;
+  --card: #fff;
+  --tx: #101a15;
+  --mut: #5d6a62;
+  --ln: #dcdfd8;
+  --t1: #0f4530;
+  --t2: #08251a;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0a100d;
+    --card: #121a16;
+    --tx: #ecefe9;
+    --mut: #9aa89f;
+    --ln: #22302a;
+    --prc: #c7a14a;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0a100d;
+  --card: #121a16;
+  --tx: #ecefe9;
+  --mut: #9aa89f;
+  --ln: #22302a;
+  --prc: #c7a14a;
+}
+:root {
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
+}
+html {
+  scroll-padding-top: env(safe-area-inset-top, 0px);
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--tx);
+  font: 16px/1.55 Manrope, system-ui, Arial, sans-serif;
+}
+
+/* brand typography + focus ring: the mockup sets these globally */
+h1,
+h2,
+h3,
+.logo {
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-weight: 600;
+  margin: 0;
+  line-height: 1.1;
+}
+a {
+  color: inherit;
+  text-decoration: none;
+}
+button {
+  font: inherit;
+  cursor: pointer;
+}
+:focus-visible {
+  outline: 3px solid var(--au);
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------------ shell */
+
+/* video backdrop: a fixed layer at z-index 0 with the shell above it */
+.ws #bg-video {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  background: #062418;
+}
+.ws #bg-video video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.ws #bg-video .scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(4, 26, 17, 0.88), rgba(4, 26, 17, 0.8) 45%, rgba(4, 26, 17, 0.88));
+}
+.ws .top,
+.ws main,
+.ws footer {
+  position: relative;
+  z-index: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ws #bg-video video {
+    display: none;
+  }
+}
+
+.ws .top {
+  background: var(--au);
+  color: #2a2000;
+  text-align: center;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 6px 10px;
+}
+.ws header {
+  background: var(--g);
+  color: #fff;
+  position: sticky;
+  top: env(safe-area-inset-top, 0px);
+  z-index: 5;
+  border-bottom: 1px solid var(--au);
+}
+.ws .bar {
+  max-width: 1200px;
+  margin: auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 16px;
+  flex-wrap: wrap;
+}
+.ws .logo {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+.ws .logo b {
+  color: var(--gl);
+}
+.ws .search {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+}
+.ws .search input {
+  flex: 1;
+  border: 0;
+  border-radius: 2px 0 0 2px;
+  padding: 10px 16px;
+  font: inherit;
+  background: #fff;
+  color: #12201a;
+  min-width: 0;
+}
+.ws .search button {
+  border: 0;
+  background: var(--au);
+  color: #2a2000;
+  font-weight: 700;
+  padding: 0 20px;
+  border-radius: 0 2px 2px 0;
+}
+.ws nav {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.ws nav a,
+.ws nav button {
+  color: #fff;
+  background: none;
+  border: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+.ws nav a.on {
+  background: rgba(255, 255, 255, 0.18);
+}
+.ws .cnt {
+  background: var(--au);
+  color: #1a1305;
+  border-radius: 2px;
+  padding: 0 7px;
+  font-size: 13px;
+  margin-left: 4px;
+}
+
+.ws main {
+  max-width: 1200px;
+  margin: auto;
+  padding: 16px;
+}
+
+/* ------------------------------------------------------------- hero slides */
+
+.ws .hero {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  gap: 12px;
+  scrollbar-width: none;
+}
+.ws .hero::-webkit-scrollbar {
+  display: none;
+}
+.ws .slide {
+  flex: 0 0 100%;
+  scroll-snap-align: start;
+  border-radius: 4px;
+  padding: 36px 32px;
+  min-height: 220px;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+  align-items: flex-start;
+  position: relative;
+  overflow: hidden;
+}
+.ws .slide h1 {
+  font-size: clamp(38px, 6vw, 68px);
+  font-weight: 600;
+}
+.ws .slide p {
+  margin: 0;
+  font-size: 18px;
+  max-width: 46ch;
+}
+.ws .slide img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  opacity: 0.5;
+  z-index: 0;
+  transform: scale(1.02);
+}
+.ws .slide b.veil {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: block;
+  background: linear-gradient(100deg, rgba(6, 36, 24, 0.92) 0%, rgba(6, 36, 24, 0.55) 62%, rgba(6, 36, 24, 0.3) 100%);
+}
+.ws .slide > *:not(img):not(b.veil) {
+  position: relative;
+  z-index: 2;
+}
+
+/* ---------------------------------------------------------------- controls */
+
+.ws .btn {
+  background: var(--au);
+  color: #2a2000;
+  border: 0;
+  border-radius: 2px;
+  padding: 11px 26px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  display: inline-block;
+}
+.ws .btn.alt {
+  background: var(--g);
+  color: #fff;
+}
+.ws .btn.out {
+  background: none;
+  border: 1px solid var(--prc);
+  color: var(--prc);
+}
+.ws .cats {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 14px 0;
+  scrollbar-width: none;
+}
+.ws .chip {
+  flex: none;
+  background: var(--card);
+  border: 1px solid var(--ln);
+  border-radius: 2px;
+  padding: 7px 16px;
+  font-weight: 600;
+  color: var(--tx);
+}
+.ws .chip.on {
+  background: var(--g);
+  color: #fff;
+  border-color: var(--g);
+}
+.ws .sec {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin: 22px 0 10px;
+}
+/* Listing routes (/shop, /category/*, /sport/*, /brand/*, /search) carry the
+   page's own <h1> here, where the mockup put its page title in an <h2>. The
+   computed styles are identical, so the replica is unaffected. */
+.ws .sec h1,
+.ws .sec h2 {
+  font-size: 32px;
+  font-weight: 600;
+}
+.ws .deal {
+  background: var(--card);
+  border: 1px solid var(--au);
+  border-radius: 4px;
+  padding: 6px 16px 16px;
+}
+.ws .cd {
+  background: var(--g2);
+  color: var(--gl);
+  border-radius: 2px;
+  padding: 2px 10px;
+  font-weight: 600;
+}
+
+/* ------------------------------------------------------------ product card */
+
+.ws .grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 12px;
+}
+.ws .card {
+  background: var(--card);
+  border: 1px solid var(--ln);
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.ws .img {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, var(--t1), var(--t2));
+  position: relative;
+}
+.ws .img img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.ws .mk {
+  position: relative;
+  z-index: 1;
+  font: italic 600 24px "Cormorant Garamond", Georgia, serif;
+  color: var(--gl);
+  text-align: center;
+  padding: 0 12px;
+}
+.ws .off {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 1;
+  background: var(--au);
+  color: #1a1305;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 2px;
+  padding: 1px 7px;
+}
+.ws .info {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+.ws .nm {
+  font-weight: 600;
+  font-size: 15px;
+}
+.ws .sold {
+  color: var(--mut);
+  font-size: 13px;
+}
+.ws .pr {
+  font-weight: 700;
+  font-size: 19px;
+  color: var(--prc);
+}
+.ws .pr s {
+  color: var(--mut);
+  font-size: 13px;
+  font-weight: 400;
+  margin-left: 4px;
+}
+.ws .add {
+  margin: 0 10px 10px;
+  background: var(--g);
+  color: #fff;
+  border: 0;
+  border-radius: 2px;
+  padding: 8px;
+  font-weight: 600;
+}
+.ws .trust {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+  margin-top: 22px;
+}
+.ws .trust div {
+  background: var(--card);
+  border: 1px solid var(--ln);
+  border-radius: 4px;
+  padding: 12px 14px;
+  font-weight: 600;
+}
+
+/* -------------------------------------------------------- panels and forms */
+
+.ws .two {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
+}
+.ws .big .mk {
+  font-size: 44px;
+}
+.ws .box {
+  background: var(--card);
+  border: 1px solid var(--ln);
+  border-radius: 4px;
+  padding: 16px;
+}
+.ws .row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--ln);
+}
+.ws .q button {
+  width: 30px;
+  height: 30px;
+  border-radius: 2px;
+  border: 1px solid var(--ln);
+  background: var(--card);
+  color: var(--tx);
+}
+/* Build addition (mockup has no textarea): the same field treatment. */
+.ws input.f,
+.ws select.f,
+.ws textarea.f {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--ln);
+  border-radius: 2px;
+  background: var(--bg);
+  color: var(--tx);
+  font: inherit;
+  margin: 4px 0 10px;
+}
+.ws .pill {
+  border-radius: 2px;
+  padding: 1px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--g);
+  color: var(--gl);
+}
+.ws .kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+.ws .kpi b {
+  font: 600 36px "Cormorant Garamond", Georgia, serif;
+  display: block;
+}
+.ws .kpi span {
+  color: var(--mut);
+  font-size: 14px;
+}
+.ws .up {
+  color: var(--prc);
+  font-weight: 600;
+}
+.ws .tw {
+  overflow-x: auto;
+}
+.ws table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 480px;
+}
+.ws th,
+.ws td {
+  text-align: left;
+  padding: 9px 8px;
+  border-bottom: 1px solid var(--ln);
+  font-size: 15px;
+}
+.ws .steps {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+.ws .steps i {
+  flex: 1;
+  height: 4px;
+  border-radius: 1px;
+  background: var(--ln);
+}
+.ws .steps i.d {
+  background: var(--au);
+}
+
+.ws #toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  background: var(--g2);
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+  z-index: 9;
+}
+.ws #toast.on {
+  opacity: 1;
+}
+
+.ws footer {
+  text-align: center;
+  color: var(--mut);
+  padding: 26px 16px;
+  font-size: 14px;
+}
+
+/* Tailwind's preflight zeroes the UA heading sizes and paragraph margins the
+   mockup renders with. Restore them inside the storefront; explicit design
+   rules (.slide h1, .sec h1, .sec h2, inline route-title sizes) still win. */
+.ws h1 {
+  font-size: 2em;
+}
+.ws h2 {
+  font-size: 1.5em;
+}
+.ws h3 {
+  font-size: 1.17em;
+}
+.ws p {
+  margin: 1em 0;
+}
+
+@media (max-width: 700px) {
+  .ws .two {
+    grid-template-columns: 1fr;
+  }
+  .ws .slide {
+    padding: 24px 20px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ws * {
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+}

@@ -15,6 +15,10 @@ export type ProductCard = {
   brand_name: string | null;
   primary_image: { storage_path: string; alt_text: string | null; is_primary: boolean; sort_order: number } | null;
   availability: "in_stock" | "low_stock" | "out_of_stock";
+  /** Default (else first) active variant — this is the card's Add-to-cart target. */
+  default_variant_id: string | null;
+  /** Status of that one variant, so a card is never disabled for a sibling's stock. */
+  default_variant_status: "in_stock" | "low_stock" | "out_of_stock" | null;
   variant_count: number;
 };
 
@@ -26,6 +30,9 @@ export type ListFilters = {
   min_price?: number;
   max_price?: number;
   attr?: Record<string, string>; // attribute slug -> value
+  featured?: boolean;
+  /** Explicit product ids (landing-page curation). Order is preserved by the caller. */
+  ids?: string[];
   sort?: "newest" | "price_asc" | "price_desc" | "name";
   page?: number;
 };
@@ -49,36 +56,74 @@ export async function getNav(): Promise<{ sports: NavSport[]; categories: NavCat
   };
 }
 
-/** Availability rollup: worst status across a product's active variants. */
+/**
+ * Availability rollup: the worst status across a product's active variants
+ * (for badges) plus each variant's own status (so a card's Add-to-cart button
+ * is judged on the variant it would actually add).
+ */
 async function availabilityMap(
   db: Db,
   productIds: string[],
-): Promise<Map<string, "in_stock" | "low_stock" | "out_of_stock">> {
-  const out = new Map<string, "in_stock" | "low_stock" | "out_of_stock">();
-  if (productIds.length === 0) return out;
-  const { data } = await db.from("variant_availability").select("product_id,status").in("product_id", productIds);
+): Promise<{
+  product: Map<string, "in_stock" | "low_stock" | "out_of_stock">;
+  variant: Map<string, "in_stock" | "low_stock" | "out_of_stock">;
+}> {
+  const product = new Map<string, "in_stock" | "low_stock" | "out_of_stock">();
+  const variant = new Map<string, "in_stock" | "low_stock" | "out_of_stock">();
+  if (productIds.length === 0) return { product, variant };
+  const { data } = await db
+    .from("variant_availability")
+    .select("variant_id,product_id,status")
+    .in("product_id", productIds);
   const rank = { out_of_stock: 0, low_stock: 1, in_stock: 2 } as const;
   for (const row of data ?? []) {
     const s = row.status as "in_stock" | "low_stock" | "out_of_stock";
-    const cur = out.get(row.product_id);
-    if (!cur || rank[s] < rank[cur]) out.set(row.product_id, s);
+    variant.set(row.variant_id, s);
+    const cur = product.get(row.product_id);
+    if (!cur || rank[s] < rank[cur]) product.set(row.product_id, s);
   }
-  return out;
+  return { product, variant };
 }
 
 async function hydrateCards(
   db: Db,
   ids: string[],
-): Promise<Map<string, Pick<ProductCard, "primary_image" | "availability" | "variant_count" | "brand_name">>> {
-  const map = new Map<string, Pick<ProductCard, "primary_image" | "availability" | "variant_count" | "brand_name">>();
+): Promise<
+  Map<
+    string,
+    Pick<
+      ProductCard,
+      "primary_image" | "availability" | "variant_count" | "brand_name" | "default_variant_id" | "default_variant_status"
+    >
+  >
+> {
+  type Hydrated = Pick<
+    ProductCard,
+    "primary_image" | "availability" | "variant_count" | "brand_name" | "default_variant_id" | "default_variant_status"
+  >;
+  const map = new Map<string, Hydrated>();
   if (ids.length === 0) return map;
   const [imgs, avail, variants] = await Promise.all([
     db.from("product_images").select("product_id,storage_path,alt_text,is_primary,sort_order").in("product_id", ids).order("sort_order").limit(ids.length * 5),
     availabilityMap(db, ids),
-    db.from("product_variants").select("product_id").in("product_id", ids).eq("is_active", true).is("deleted_at", null),
+    db
+      .from("product_variants")
+      .select("id,product_id,is_default,sort_order")
+      .in("product_id", ids)
+      .eq("is_active", true)
+      .is("deleted_at", null),
   ]);
   const counts = new Map<string, number>();
-  for (const v of variants.data ?? []) counts.set(v.product_id, (counts.get(v.product_id) ?? 0) + 1);
+  const defaults = new Map<string, { id: string; isDefault: boolean; sortOrder: number }>();
+  for (const v of variants.data ?? []) {
+    counts.set(v.product_id, (counts.get(v.product_id) ?? 0) + 1);
+    const cur = defaults.get(v.product_id);
+    const better =
+      !cur ||
+      (v.is_default && !cur.isDefault) ||
+      (v.is_default === cur.isDefault && (v.sort_order ?? 0) < cur.sortOrder);
+    if (better) defaults.set(v.product_id, { id: v.id, isDefault: v.is_default, sortOrder: v.sort_order ?? 0 });
+  }
   const byProduct = new Map<string, typeof imgs.data>();
   for (const img of imgs.data ?? []) {
     const list = byProduct.get(img.product_id) ?? [];
@@ -89,9 +134,12 @@ async function hydrateCards(
     const list = (byProduct.get(id) ?? []).slice().sort((a, b) =>
       a.is_primary === b.is_primary ? a.sort_order - b.sort_order : a.is_primary ? -1 : 1,
     );
+    const picked = defaults.get(id);
     map.set(id, {
       primary_image: list[0] ?? null,
-      availability: avail.get(id) ?? "out_of_stock",
+      availability: avail.product.get(id) ?? "out_of_stock",
+      default_variant_id: picked?.id ?? null,
+      default_variant_status: picked ? (avail.variant.get(picked.id) ?? null) : null,
       variant_count: counts.get(id) ?? 0,
       brand_name: null,
     });
@@ -137,6 +185,12 @@ export async function listProducts(
   if (filters.sport_id) query = query.eq("sport_id", filters.sport_id);
   if (filters.category_id) query = query.eq("category_id", filters.category_id);
   if (filters.brand_id) query = query.eq("brand_id", filters.brand_id);
+  if (filters.featured) query = query.eq("is_featured", true);
+  if (filters.ids && filters.ids.length > 0) {
+    const ids = filters.ids.filter((id) => /^[0-9a-f-]{36}$/i.test(id)).slice(0, 24);
+    if (ids.length === 0) return { cards: [], total: 0, page, perPage: PER_PAGE };
+    query = query.in("id", ids);
+  }
   if (filters.min_price !== undefined) query = query.gte("base_price", filters.min_price);
   if (filters.max_price !== undefined) query = query.lte("base_price", filters.max_price);
   if (filters.q) {
@@ -190,6 +244,8 @@ export async function listProducts(
         brand_name: brand,
         primary_image: e?.primary_image ?? null,
         availability: e?.availability ?? "out_of_stock",
+        default_variant_id: e?.default_variant_id ?? null,
+        default_variant_status: e?.default_variant_status ?? null,
         variant_count: e?.variant_count ?? 0,
       };
     },

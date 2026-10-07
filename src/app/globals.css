@@ -1,4 +1,7 @@
 @import "tailwindcss";
+/* The storefront's visual contract, ported verbatim from the canonical design.
+   Loaded after Tailwind so its rules win inside `.ws`. */
+@import "./design.css";
 
 @theme {
   /* Brand greens (canonical design L10) */
@@ -28,34 +31,4 @@
   /* Radii (2px controls, 4px cards — no pills) */
   --radius-sm: 2px;
   --radius-md: 4px;
-}
-
-:root {
-  --background: #0a100d;
-  --foreground: #ecefe9;
-}
-
-html {
-  scroll-behavior: smooth;
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans);
-}
-
-/* Keep the mockup's visible gold focus ring (AUDIT L28) */
-:focus-visible {
-  outline: 3px solid #a98733;
-  outline-offset: 2px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
-  }
 }

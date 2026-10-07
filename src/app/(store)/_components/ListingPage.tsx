@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { listProducts, type ListFilters } from "@/lib/storefront/catalog";
+import { getNav, listProducts, type ListFilters } from "@/lib/storefront/catalog";
 import { ProductCard } from "./ProductCard";
 import { ListingControls } from "./ListingControls";
 
@@ -57,8 +57,13 @@ function pageHref(basePath: string, raw: Record<string, string>, page: number): 
 }
 
 /**
- * Shared listing renderer: title, controls, grid, pagination.
+ * Shared listing renderer, laid out like the canonical design's `shop()` route:
+ * a category chip row, a `.sec` heading with the result count, the filter box,
+ * the product `.grid` and chip pagination.
+ *
  * `scope` carries the page's fixed filters (sport/category/brand/q).
+ * `activeCategorySlug` drives the chip state: `null` marks "All", a slug marks
+ * that category, and leaving it undefined marks nothing (sport/brand/search).
  */
 export async function ListingPage({
   title,
@@ -66,14 +71,17 @@ export async function ListingPage({
   basePath,
   scope,
   searchParams,
+  activeCategorySlug,
 }: {
   title: string;
   subtitle?: string;
   basePath: string;
   scope: Partial<ListFilters>;
   searchParams: ListingSearch;
+  activeCategorySlug?: string | null;
 }) {
   const parsed = parseListingQuery(searchParams);
+  const nav = await getNav();
   const brandSlug = first(searchParams.brand);
   const filters: ListFilters = {
     ...scope,
@@ -91,29 +99,42 @@ export async function ListingPage({
   const raw = { ...parsed.raw, ...(brandSlug ? { brand: brandSlug } : {}) };
 
   return (
-    <main className="flex flex-col gap-6">
-      <div>
-        <h1 className="font-display text-4xl font-bold">{title}</h1>
-        {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
-        <p className="mt-1 text-sm text-muted" aria-live="polite">
-          {total === 0 ? "No products found." : `${total} product${total === 1 ? "" : "s"}`}
-        </p>
+    <main>
+      <div className="cats">
+        <Link className={`chip${activeCategorySlug === null ? " on" : ""}`} href="/shop">
+          All
+        </Link>
+        {nav.categories.slice(0, 11).map((c) => (
+          <Link
+            key={c.id}
+            className={`chip${activeCategorySlug === c.slug ? " on" : ""}`}
+            href={`/category/${c.slug}`}
+          >
+            {c.name}
+          </Link>
+        ))}
       </div>
+
+      <div className="sec">
+        <h1>{title}</h1>
+        <span className="sold" aria-live="polite">
+          {total === 0 ? "No products found." : `${total} product${total === 1 ? "" : "s"}`}
+        </span>
+      </div>
+      {subtitle && <p className="sold">{subtitle}</p>}
 
       <ListingControls base={scope} current={{ ...raw, ...(scope.q ? { q: scope.q } : {}) }} />
 
       {cards.length === 0 ? (
-        <div role="status" className="rounded-md border border-dashed border-line bg-card px-6 py-12 text-center">
-          <p className="font-display text-xl font-bold">Nothing matches</p>
-          <p className="mx-auto mt-2 max-w-md text-sm text-muted">
-            Try fewer filters, a different word, or browse the full shop.
-          </p>
-          <Link href="/shop" className="mt-4 inline-block rounded-sm bg-gold-600 px-4 py-2 text-sm font-semibold text-bronze-ink">
+        <div className="box" role="status">
+          <h2>Nothing matches</h2>
+          <p className="sold">Try fewer filters, a different word, or browse the full shop.</p>
+          <Link className="btn" href="/shop">
             Browse everything
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+        <div className="grid">
           {cards.map((c) => (
             <ProductCard key={c.id} product={c} />
           ))}
@@ -121,18 +142,20 @@ export async function ListingPage({
       )}
 
       {pages > 1 && (
-        <nav aria-label="Pagination" className="flex flex-wrap items-center gap-2 text-sm">
+        <nav aria-label="Pagination" className="cats">
           {page > 1 && (
-            <Link href={pageHref(basePath, raw, page - 1)} className="rounded-sm border border-line px-3 py-1.5">
+            <Link className="chip" href={pageHref(basePath, raw, page - 1)}>
               ← Prev
             </Link>
           )}
-          <span aria-current="page" className="rounded-sm border border-gold-600 bg-gold-600 px-3 py-1.5 font-semibold text-bronze-ink">
+          <span aria-current="page" className="chip on">
             {page}
           </span>
-          <span className="text-muted">of {pages}</span>
+          <span className="sold" style={{ alignSelf: "center" }}>
+            of {pages}
+          </span>
           {page < pages && (
-            <Link href={pageHref(basePath, raw, page + 1)} className="rounded-sm border border-line px-3 py-1.5">
+            <Link className="chip" href={pageHref(basePath, raw, page + 1)}>
               Next →
             </Link>
           )}

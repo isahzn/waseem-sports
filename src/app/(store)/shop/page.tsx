@@ -8,11 +8,12 @@ export const metadata = {
 export default async function ShopPage({ searchParams }: { searchParams: Promise<ListingSearch> }) {
   return (
     <ListingPage
-      title="Shop all"
+      title="All products"
       subtitle="Every published product, newest first."
       basePath="/shop"
       scope={{}}
       searchParams={await searchParams}
+      activeCategorySlug={null}
     />
   );
 }
