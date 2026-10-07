@@ -3,7 +3,9 @@
 > **Read order:** this file → `specs/phase-00-fix-spec.md` (the full plan) → `CLAUDE.md` (rules) → `HANDOFF.md` (the client's original brief).
 > **`HANDOFF.md` is the client's received brief — never overwrite it.** This file is deliberately named `SESSION-HANDOFF.md` because on Windows `handoff.md` and `HANDOFF.md` are the same file.
 
-**Last session:** 2026-10-07 (Phase 05 checkout/orders/tracking/admin built + verified end-to-end, UNCOMMITTED — awaiting owner: commit Phases 01–05? start Phase 06?) · **Project:** Waseem Sports · **Working dir:** `executive agent/Projects/Waseem-sports`
+**Last session:** 2026-10-07 (Phase 05 built + verified end-to-end, then **Phases 00–05 committed and pushed to the project's own repo** — `7f66b18` on `main`) · **Project:** Waseem Sports · **Working dir:** `executive agent/Projects/Waseem-sports`
+
+> **Repository (changed 2026-10-07):** the project now has its **own** git repository at `Projects/Waseem-sports` with `origin = https://github.com/isahzn/waseem-sports.git`. Commit and push project work **there** from now on — it holds the whole package plus the Phases 00–05 history (220 files). The surrounding workspace repo still tracks the same paths for its own history; it is unrelated to this project and is never the place to commit Waseem work. `.env` (live keys) and `supabase/.temp/` (machine-local CLI state) are gitignored and were verified absent from the pushed tree.
 
 ---
 
@@ -142,7 +144,7 @@ No code, no SQL, no other document content, no file moved or deleted.
 
 ## Next steps
 
-1. **Owner decision — commit Phases 01–05.** The entire MVP application code (Next 16 scaffold, Supabase clients, admin auth shell, catalog CMS, storefront, checkout/orders/tracking/admin) is uncommitted in the working tree. Commit with explicit Waseem paths only, never `git add -A` (the workspace repo has unrelated changes).
+1. **Done — Phases 00–05 are committed and pushed** (`7f66b18` on `main`, origin `https://github.com/isahzn/waseem-sports.git`, 220 files, no secrets). Continue committing to that repo as the phases land (explicit paths, never `git add -A`).
 2. **Create the first admin account** (DEPLOYMENT.md setup step 2), then click through `/admin` with a real session: order confirm → processing → shipped → delivered (stock reserve/commit), cancel (release), the manual stock panel, internal notes, shipping-rule CRUD, the D2 reserve-policy toggle, the dashboard. This is the only MVP proof still missing — it needs the owner's account, which no session can create for itself.
 3. **Owner enters real delivery rules** in `/admin/shipping` before launch (D5 — deliberately nothing is seeded) and confirms the D2 policy. Until a rule exists the storefront shows the honest "online checkout isn't open yet" panel with the shop's WhatsApp number and phone instead of guessing a fee.
 4. **PHASE 06 — notifications** (`phases/PHASE-06-notifications.md`): the outbox rows already exist for every order event (`order_placed` proven end-to-end; `skipped` while unconfigured, per D33). The phase adds the `Notifier` interface, the WAHA adapter, the cron route, DB templates and the admin notifications page.
