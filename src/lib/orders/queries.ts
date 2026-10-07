@@ -300,11 +300,16 @@ export type TrackedOrder = {
  * Look an order up by number + tracking token. The raw token is hashed and
  * compared against `tracking_token_hash` in constant time; a wrong or missing
  * token returns null (no order metadata leaks, not even existence).
+ *
+ * The stored hash itself is also accepted: notification messages (PHASE 06)
+ * cannot rebuild the raw link (only the hash is stored), so they carry the hash
+ * as the capability — see `buildNotificationTrackingUrl` (D44).
  */
 export async function getTrackedOrder(orderNumber: string, token: string): Promise<TrackedOrder | null> {
   const number = orderNumber.trim().slice(0, 40);
   if (!number) return null;
   const hash = hashTrackingToken(token);
+  const presented = token.trim();
 
   const admin = createAdminClient();
   const { data, error } = await admin
@@ -315,7 +320,9 @@ export async function getTrackedOrder(orderNumber: string, token: string): Promi
     .eq("order_number", number)
     .maybeSingle();
   if (error || !data) return null;
-  if (!tokensMatch(hash, data.tracking_token_hash)) return null;
+  const valid =
+    tokensMatch(hash, data.tracking_token_hash) || tokensMatch(presented, data.tracking_token_hash);
+  if (!valid) return null;
 
   const [itemsRes, historyRes] = await Promise.all([
     admin

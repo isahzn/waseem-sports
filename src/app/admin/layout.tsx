@@ -17,6 +17,7 @@ const NAV_GROUPS: { label: string; links: { href: string; label: string; badge?:
     links: [
       { href: "/admin", label: "Dashboard" },
       { href: "/admin/orders", label: "Orders", badge: "new-orders" },
+      { href: "/admin/notifications", label: "Notifications" },
     ],
   },
   {
@@ -36,7 +37,10 @@ const NAV_GROUPS: { label: string; links: { href: string; label: string; badge?:
   },
   {
     label: "Setup",
-    links: [{ href: "/admin/shipping", label: "Shipping" }],
+    links: [
+      { href: "/admin/shipping", label: "Shipping" },
+      { href: "/admin/settings/whatsapp", label: "Notifications & WhatsApp" },
+    ],
   },
 ];
 

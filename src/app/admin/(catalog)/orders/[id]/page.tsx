@@ -4,7 +4,10 @@ import { requireAdminOrRedirect } from "@/lib/auth/requireAdmin";
 import { formatLKR } from "@/lib/storefront/money";
 import { getOrderDetail } from "@/lib/orders/queries";
 import { STATUS_LABELS, type OrderStatus } from "@/lib/orders/status";
+import { listOrderNotifications, type NotificationRow } from "@/lib/notifications/outbox";
+import { eventLabel } from "@/lib/notifications/events";
 import { StatusBadge } from "../../_components/ui";
+import { RetryButton } from "../../notifications/_components/RetryButton";
 import { NotesForm } from "../_components/NotesForm";
 import { StatusForm } from "../_components/StatusForm";
 import { StockActions } from "../_components/StockActions";
@@ -35,6 +38,14 @@ function paymentMethodLabel(method: string): string {
   return method.toUpperCase();
 }
 
+/** Outbox status tone: sent · queued · failed · skipped (unconfigured is normal). */
+function notificationTone(status: NotificationRow["status"]): "green" | "gold" | "muted" | "red" {
+  if (status === "sent") return "green";
+  if (status === "failed") return "red";
+  if (status === "skipped") return "muted";
+  return "gold";
+}
+
 /** Flatten the address jsonb into printable lines, skipping blank values. */
 function addressLines(address: Record<string, unknown>): string[] {
   const order = ["line1", "line2", "city", "district", "postal_code", "country"];
@@ -50,6 +61,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
   const { id } = await params;
   const order = await getOrderDetail(id);
   if (!order) notFound();
+  const notifications = await listOrderNotifications(order.id);
 
   const address = addressLines(order.shipping_address);
   const phoneDigits = order.customer_phone.replace(/[^\d+]/g, "");
@@ -145,6 +157,40 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                   </li>
                 ))}
               </ol>
+            )}
+          </section>
+
+          <section>
+            <h2 className="font-display text-xl font-bold">Notifications</h2>
+            <p className="mt-1 text-sm text-muted">
+              A row appears here for each order event. Rows recorded as <b>skipped</b> mean the
+              channel has no provider configured — the message was never attempted and the order was
+              never affected.
+            </p>
+            {notifications.length === 0 ? (
+              <p className="mt-2 text-sm text-muted">No notifications have been queued for this order.</p>
+            ) : (
+              <ul className="mt-3 flex flex-col gap-2">
+                {notifications.map((row) => (
+                  <li
+                    key={row.id}
+                    className="flex flex-wrap items-start justify-between gap-3 rounded-md border border-line bg-card px-4 py-3 text-sm"
+                  >
+                    <div>
+                      <p className="font-semibold">{eventLabel(row.event)}</p>
+                      <p className="mt-0.5 text-xs text-muted">
+                        {row.channel} · {formatDateTime(row.created_at)}
+                        {row.attempts > 0 ? ` · ${row.attempts} attempt${row.attempts === 1 ? "" : "s"}` : ""}
+                      </p>
+                      {row.last_error && <p className="mt-1 text-xs text-muted">{row.last_error}</p>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <StatusBadge tone={notificationTone(row.status)}>{row.status}</StatusBadge>
+                      <RetryButton id={row.id} label={row.status === "sent" ? "Resend" : "Retry"} />
+                    </div>
+                  </li>
+                ))}
+              </ul>
             )}
           </section>
         </div>

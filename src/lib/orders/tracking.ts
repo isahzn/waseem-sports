@@ -54,8 +54,25 @@ export function parseTrackingToken(raw: unknown): string | null {
   return token;
 }
 
-/** Customer-facing tracking link for an order. */
+function siteBase(): string {
+  return (env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/+$/, "");
+}
+
+/** Customer-facing tracking link for an order (the raw token from checkout). */
 export function buildTrackingUrl(orderNumber: string, token: string): string {
-  const base = (env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/+$/, "");
-  return `${base}/order/${encodeURIComponent(orderNumber)}?t=${encodeURIComponent(token)}`;
+  return `${siteBase()}/order/${encodeURIComponent(orderNumber)}?t=${encodeURIComponent(token)}`;
+}
+
+/**
+ * Tracking link for a notification message (PHASE 06).
+ *
+ * Only `sha256(token + pepper)` is stored, so a notification sent for a later
+ * status has no raw token to rebuild the checkout link with. The stored hash is
+ * therefore the capability in the message link: it lives only in `orders`
+ * (service-role-readable) and travels only to that customer's phone, exactly as
+ * the raw token does. `getTrackedOrder` accepts it as an alternative to the raw
+ * token — same data, same audience, no plaintext token ever stored (D44).
+ */
+export function buildNotificationTrackingUrl(orderNumber: string, tokenHash: string): string {
+  return `${siteBase()}/order/${encodeURIComponent(orderNumber)}?t=${encodeURIComponent(tokenHash)}`;
 }
