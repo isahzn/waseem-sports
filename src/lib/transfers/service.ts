@@ -39,6 +39,17 @@ async function recordEvent(
   }
 }
 
+/**
+ * Update columns without a state transition (e.g. recording the provider
+ * tx id while already PROCESSING). The state machine stays the only path
+ * that changes `status`; this never touches it.
+ */
+async function touch(id: string, patch: Partial<TransferRow>, note?: string): Promise<void> {
+  const db = adminDb();
+  await db.from("money_transfers").update(patch).eq("id", id);
+  if (note) await recordEvent(id, "processing", "processing", note);
+}
+
 async function setStatus(
   row: TransferRow,
   to: TransferRow["status"],
@@ -207,7 +218,7 @@ export async function confirmTransfer(
   } catch (err) {
     const message = err instanceof Error ? err.message : "Provider error.";
     logger.error("transfer provider threw", { id: current.id, error: message });
-    await setStatus(current, "processing", { last_error: message }, "Provider submission issue — verifying.");
+    await touch(current.id, { last_error: message }, "Provider submission issue — verifying.");
     // Verify: the money may still have moved. Never claim success/failure yet.
     try {
       await verifyTransfer(current.id, opts.actor);
@@ -221,9 +232,12 @@ export async function confirmTransfer(
   if (result.status === "completed") {
     await setStatus(current, "completed", { provider_tx_id: result.provider_tx_id, completed_at: new Date().toISOString() }, "Provider confirmed completion.");
   } else if (result.status === "processing") {
-    await setStatus(current, "processing", { provider_tx_id: result.provider_tx_id }, "Provider is processing — verify to settle.");
+    // Already PROCESSING (moved before the provider call so a replay can
+    // never re-execute): record the tx id without a state transition.
+    await touch(current.id, { provider_tx_id: result.provider_tx_id }, "Provider is processing — verify to settle.");
   } else {
-    await setStatus(current, "failed", { provider_tx_id: result.provider_tx_id, last_error: result.message ?? result.code }, `Provider declined: ${result.code}.`);
+    const reason = result.code ? `${result.code}: ${result.message ?? "Declined."}` : (result.message ?? "Declined.");
+    await setStatus(current, "failed", { provider_tx_id: result.provider_tx_id, last_error: reason }, `Provider declined: ${result.code}.`);
   }
   await writeAudit({ actor: opts.actor, action: "transfer.confirm", entity: "money_transfers", entityId: row.id });
   const { data: after } = await db.from("money_transfers").select("*").eq("id", row.id).maybeSingle();

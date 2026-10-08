@@ -544,6 +544,12 @@ Do not use real money or real banking credentials during this phase.
 
 ---
 
+## Execution record — 2026-10-08 (built, then PROVEN LIVE against prod DB)
+
+Migrations `0004`/`0005` pushed to the live project with the owner's DB password (`supabase migration list` showed remote at 0001–0003; push applied exactly the two new files, exit 0). Live proof `.tmp/liveproof/run.mjs` against `NODE_ENV=production node server.js` + real database: **25/25** — anon refused (401), create → 201 `pending_approval` with server-computed fee/total (1500+50=1550), duplicate create returns the same row with exactly 1 row per idempotency key, **triple CONFIRM executes once** (same id, one `completed` timeline event, provider tx assigned), invalid account → `failed` with `INVALID_ACCOUNT` (money never moved), HOLD → `processing` → verify → `completed`, history/detail/timeline all list the rows, wrong-key confirm → 409, disabled image-search spends no quota, live import (row + provenance + storage bytes + rights-gate 400) — then full cleanup, DB asserts 0 transfers / 0 quota / 0 cache afterwards.
+
+**Real bug the proof caught and fixed:** when the provider returned PROCESSING, confirm tried a `processing→processing` “transition” to save the provider tx id — correctly rejected by the state machine, so the id was silently dropped and the transfer could never verify. Fix (`service.ts`): status moves `approved→processing` *before* the provider call (replay-safe), and the tx id is recorded via a `touch()` column-update that never goes through the state machine; provider-declined `last_error` now carries `CODE: message`. Rebuilt, re-proven 25/25, gates re-run (typecheck 0 · lint 0 errors · build 0).
+
 ## Superseded plan (pre-2026-10-08 card-payments spec — kept for history)
 
 The original Phase 08 required D3 (Sri Lanka card provider) + verified provider
