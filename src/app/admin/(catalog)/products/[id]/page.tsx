@@ -191,6 +191,10 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
 
       <section>
         <h2 className="text-lg font-bold">Photos</h2>
+        <p className="mt-1 text-sm text-muted">
+          <Link href={`/admin/products/${id}/imagesearch`} className="underline">Find recommended images</Link>
+          {" — deterministic suggestions, or upload manually below."}
+        </p>
         <div className="mt-4">
           <ImagesManager
             productId={id}

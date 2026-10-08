@@ -18,6 +18,11 @@ const serverSchema = z.object({
   MOCK_BANK_FEE_FLAT: z.string().optional().or(z.literal("")),
   MOCK_BANK_FEE_PCT: z.string().optional().or(z.literal("")),
   MOCK_BANK_CURRENCIES: z.string().optional().or(z.literal("")),
+  // Phase 09 image search (no provider configured — D6 open).
+  IMAGE_SEARCH_PROVIDER: z.string().optional().or(z.literal("")),
+  IMAGE_SEARCH_API_KEY: z.string().optional().or(z.literal("")),
+  IMAGE_SEARCH_DAILY_QUOTA: z.string().optional().or(z.literal("")),
+  IMAGE_SEARCH_CACHE_DAYS: z.string().optional().or(z.literal("")),
 });
 
 export type PublicEnv = z.infer<typeof publicSchema>;
@@ -48,6 +53,10 @@ function parseEnv() {
           MOCK_BANK_FEE_FLAT: process.env.MOCK_BANK_FEE_FLAT ?? "",
           MOCK_BANK_FEE_PCT: process.env.MOCK_BANK_FEE_PCT ?? "",
           MOCK_BANK_CURRENCIES: process.env.MOCK_BANK_CURRENCIES ?? "",
+          IMAGE_SEARCH_PROVIDER: process.env.IMAGE_SEARCH_PROVIDER ?? "",
+          IMAGE_SEARCH_API_KEY: process.env.IMAGE_SEARCH_API_KEY ?? "",
+          IMAGE_SEARCH_DAILY_QUOTA: process.env.IMAGE_SEARCH_DAILY_QUOTA ?? "",
+          IMAGE_SEARCH_CACHE_DAYS: process.env.IMAGE_SEARCH_CACHE_DAYS ?? "",
         })
       : {
           SUPABASE_SERVICE_ROLE_KEY: "",
@@ -60,6 +69,10 @@ function parseEnv() {
           MOCK_BANK_FEE_FLAT: "",
           MOCK_BANK_FEE_PCT: "",
           MOCK_BANK_CURRENCIES: "",
+          IMAGE_SEARCH_PROVIDER: "",
+          IMAGE_SEARCH_API_KEY: "",
+          IMAGE_SEARCH_DAILY_QUOTA: "",
+          IMAGE_SEARCH_CACHE_DAYS: "",
         };
 
   return { ...pub, ...server };
