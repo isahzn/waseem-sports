@@ -10,6 +10,14 @@ const serverSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional().or(z.literal("")),
   ORDER_TRACKING_SECRET: z.string().optional().or(z.literal("")),
   SCHEDULED_JOBS_SECRET: z.string().optional().or(z.literal("")),
+  // Phase 08 sandbox transfers (mock provider only — no real bank).
+  PAYMENT_PROVIDER: z.string().optional().or(z.literal("")),
+  MOCK_BANK_ENABLED: z.string().optional().or(z.literal("")),
+  MOCK_BANK_BALANCE: z.string().optional().or(z.literal("")),
+  MOCK_BANK_MAX_AMOUNT: z.string().optional().or(z.literal("")),
+  MOCK_BANK_FEE_FLAT: z.string().optional().or(z.literal("")),
+  MOCK_BANK_FEE_PCT: z.string().optional().or(z.literal("")),
+  MOCK_BANK_CURRENCIES: z.string().optional().or(z.literal("")),
 });
 
 export type PublicEnv = z.infer<typeof publicSchema>;
@@ -33,8 +41,26 @@ function parseEnv() {
             process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
           ORDER_TRACKING_SECRET: process.env.ORDER_TRACKING_SECRET ?? "",
           SCHEDULED_JOBS_SECRET: process.env.SCHEDULED_JOBS_SECRET ?? "",
+          PAYMENT_PROVIDER: process.env.PAYMENT_PROVIDER ?? "",
+          MOCK_BANK_ENABLED: process.env.MOCK_BANK_ENABLED ?? "",
+          MOCK_BANK_BALANCE: process.env.MOCK_BANK_BALANCE ?? "",
+          MOCK_BANK_MAX_AMOUNT: process.env.MOCK_BANK_MAX_AMOUNT ?? "",
+          MOCK_BANK_FEE_FLAT: process.env.MOCK_BANK_FEE_FLAT ?? "",
+          MOCK_BANK_FEE_PCT: process.env.MOCK_BANK_FEE_PCT ?? "",
+          MOCK_BANK_CURRENCIES: process.env.MOCK_BANK_CURRENCIES ?? "",
         })
-      : { SUPABASE_SERVICE_ROLE_KEY: "", ORDER_TRACKING_SECRET: "", SCHEDULED_JOBS_SECRET: "" };
+      : {
+          SUPABASE_SERVICE_ROLE_KEY: "",
+          ORDER_TRACKING_SECRET: "",
+          SCHEDULED_JOBS_SECRET: "",
+          PAYMENT_PROVIDER: "",
+          MOCK_BANK_ENABLED: "",
+          MOCK_BANK_BALANCE: "",
+          MOCK_BANK_MAX_AMOUNT: "",
+          MOCK_BANK_FEE_FLAT: "",
+          MOCK_BANK_FEE_PCT: "",
+          MOCK_BANK_CURRENCIES: "",
+        };
 
   return { ...pub, ...server };
 }
