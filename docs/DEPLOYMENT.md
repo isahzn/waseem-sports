@@ -1,5 +1,12 @@
 # Deployment & recovery (GoDaddy Node.js Hosting + Supabase)
 
+> **Showing the shop on Vercel (owner demo, 2026-10-08):** that is a *different*
+> target from the one below — Vercel runs the Next app itself and ignores
+> `server.js`. Setup, the exact environment variables and the problems to expect
+> (including the public `/admin` risk and the demo writing to the real database)
+> are in **`docs/VERCEL-DEMO.md`**. Nothing in that document changes the plan of
+> record here: GoDaddy remains production, and PHASE 11 is still the launch gate.
+
 All provider steps below: **VERIFY against the current GoDaddy deploy contract
 and Supabase docs** (V3) — don't trust remembered UI paths. GoDaddy's own
 pages returned 403 to automated fetches during research (2026-10-06), so the
