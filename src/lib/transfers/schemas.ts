@@ -37,11 +37,11 @@ const currencyField = z
   .toUpperCase()
   .length(3, "Currency must be a 3-letter code.")
   .regex(/^[A-Z]{3}$/, "Currency must be a 3-letter code.")
-  .refine((c) => allowedCurrencies().includes(c), "That currency is not enabled for sandbox transfers.");
+  .refine((c) => allowedCurrencies().includes(c), "That currency is not enabled for transfers.");
 
 export const transferFormInput = z.object({
   sender_method: z.string().trim().max(60).default("sandbox_balance"),
-  sender_account_ref: z.string().trim().min(1, "Sandbox account is required.").max(80),
+  sender_account_ref: z.string().trim().min(1, "Source account is required.").max(80),
   recipient_name: nameField,
   recipient_bank: bankField,
   recipient_account: accountField,
@@ -51,7 +51,7 @@ export const transferFormInput = z.object({
     .number({ invalid_type_error: "Amount must be a number." })
     .positive("Amount must be greater than zero.")
     .max(999999999.99, "Amount is too large.")
-    .refine((n) => n <= maxTransferAmount(), "Amount is above the sandbox transfer limit."),
+    .refine((n) => n <= maxTransferAmount(), "Amount is above the transfer limit."),
   currency: currencyField,
   reference: z.string().trim().max(80).optional().or(z.literal("")),
   description: z.string().trim().max(500).optional().or(z.literal("")),

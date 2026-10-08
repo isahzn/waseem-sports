@@ -76,7 +76,7 @@ export default async function TransferDetail({
           </form>
         ) : (
           <p className="mt-4 text-sm text-muted">
-            {transfer.status === "completed" && "Verified complete — the provider confirmed the money moved."}
+            {transfer.status === "completed" && "Completed — the provider reported success. The provider transaction ID above is your reference."}
             {transfer.status === "processing" && "Submitted — poll the status endpoint or reload to verify settlement."}
             {transfer.status === "failed" && "Failed — no money moved. See the reason above."}
             {(transfer.status === "cancelled" || transfer.status === "expired") && "Closed without execution."}

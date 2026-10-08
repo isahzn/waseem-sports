@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/auth/requireAdmin";
+import { AuthError, requireAdmin } from "@/lib/auth/requireAdmin";
 import { writeAudit } from "@/lib/catalog/audit";
 import { checkRateLimit, clientIp } from "@/lib/security/ratelimit";
 import { logger } from "@/lib/security/logger";
@@ -39,12 +39,20 @@ const settingsSchema = z.object({
   alert_number: z.string().trim().max(30, "Number is too long."),
 });
 
-async function authorize(): Promise<{ userId: string | null } | null> {
+/**
+ * Notification settings are owner-only (SECURITY.md §2: only the owner edits
+ * settings). Staff accounts can still read the page and retry notifications;
+ * they just cannot change the provider, kill switch, numbers or templates.
+ */
+async function authorize(): Promise<{ userId: string | null } | { error: string }> {
   try {
-    const admin = await requireAdmin();
+    const admin = await requireAdmin(["owner"]);
     return { userId: admin.userId };
-  } catch {
-    return null;
+  } catch (err) {
+    if (err instanceof AuthError && err.status === 403) {
+      return { error: "Only the owner can change notification settings." };
+    }
+    return { error: "Sign in required." };
   }
 }
 
@@ -54,7 +62,7 @@ export async function saveWhatsAppSettings(
   formData: FormData,
 ): Promise<WhatsAppSettingsState> {
   const admin = await authorize();
-  if (!admin) return { error: "Sign in required." };
+  if ("error" in admin) return { error: admin.error };
 
   const parsed = settingsSchema.safeParse({
     provider: formText(formData.get("provider")) ?? "none",
@@ -104,7 +112,7 @@ export async function saveWhatsAppSettings(
 /** Plain actions used as `<form action={...}>`; they always land back on the page. */
 async function runSessionAction(op: "connect" | "restart" | "disconnect"): Promise<void> {
   const admin = await authorize();
-  if (!admin) redirect("/admin/login");
+  if ("error" in admin) redirect("/admin/login");
 
   if (isWahaConfigured()) {
     try {
@@ -144,7 +152,7 @@ export async function disconnectWaha(): Promise<void> {
 /** Send one real message to the admin alert number, to prove a session works. */
 export async function sendTestWhatsApp(_prev: TestState, formData: FormData): Promise<TestState> {
   const admin = await authorize();
-  if (!admin) return { error: "Sign in required." };
+  if ("error" in admin) return { error: admin.error };
 
   const ip = clientIp(await headers());
   const limit = await checkRateLimit(`notify:test:${ip}`, 5, 15 * 60 * 1000);

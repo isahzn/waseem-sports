@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { getShopInfo } from "@/lib/storefront/catalog";
+import { telHref, whatsappHref } from "@/lib/storefront/contact-links";
 
 export const metadata = {
   title: "Contact Waseem Sports",
   description:
-    "Call, WhatsApp or visit Waseem Sports. Cash on delivery, delivery island-wide in Sri Lanka.",
+    "Call, WhatsApp or visit Waseem Sports in Colombo 11. Cash on delivery — no card details are taken online.",
 };
 
 /** Maps search URL built from the shop's own address — nothing hardcoded. */
@@ -21,23 +22,29 @@ export default async function ContactPage() {
   const email = info["public.store_email"];
   const hours = info["public.store_hours"];
 
+  // Linked through the shared helpers: a number that cannot make a working link
+  // returns null and is shown as plain text instead of a dead link. (wa.me needs
+  // a full international number, so the local `077 …` form this shop stores has
+  // to be converted — the old inline link pointed at the unconverted digits and
+  // did not open a chat.)
+  const phoneLink = phone ? telHref(phone) : null;
+  const phone2Link = phone2 ? telHref(phone2) : null;
+  const whatsappLink = whatsapp ? whatsappHref(whatsapp) : null;
+
   // Only facts the shop has actually filled in (D23: blank stays hidden).
   const rows: { label: string; value: string; href?: string; external?: boolean }[] = [];
   if (address) rows.push({ label: "Address", value: address });
-  if (phone) rows.push({ label: "Phone", value: phone, href: `tel:${phone.replace(/\s/g, "")}` });
-  if (phone2) rows.push({ label: "Phone 2", value: phone2, href: `tel:${phone2.replace(/\s/g, "")}` });
+  if (phone) rows.push({ label: "Phone", value: phone, ...(phoneLink ? { href: phoneLink } : {}) });
+  if (phone2) rows.push({ label: "Phone 2", value: phone2, ...(phone2Link ? { href: phone2Link } : {}) });
   if (whatsapp) {
     rows.push({
       label: "WhatsApp",
       value: whatsapp,
-      href: `https://wa.me/${whatsapp.replace(/\D/g, "")}`,
-      external: true,
+      ...(whatsappLink ? { href: whatsappLink, external: true } : {}),
     });
   }
   if (email) rows.push({ label: "Email", value: email, href: `mailto:${email}` });
   if (hours) rows.push({ label: "Opening hours", value: hours });
-
-  const digits = whatsapp?.replace(/\D/g, "") ?? null;
 
   return (
     <main>
@@ -106,10 +113,10 @@ export default async function ContactPage() {
               Browse the shop
             </Link>
           </p>
-          {digits && (
+          {whatsappLink && (
             <p className="sold">
               Prefer to order directly?{" "}
-              <a href={`https://wa.me/${digits}`} target="_blank" rel="noreferrer noopener">
+              <a href={whatsappLink} target="_blank" rel="noreferrer noopener">
                 Message us on WhatsApp
               </a>
               .

@@ -38,7 +38,7 @@ const NAV_GROUPS: { label: string; links: { href: string; label: string; badge?:
   {
     label: "Setup",
     links: [
-      { href: "/admin/transfers", label: "Transfers (sandbox)" },
+      { href: "/admin/transfers", label: "Transfers" },
       { href: "/admin/shipping", label: "Shipping" },
       { href: "/admin/settings/image-search", label: "Image search" },
       { href: "/admin/settings/whatsapp", label: "Notifications & WhatsApp" },

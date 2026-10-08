@@ -72,6 +72,7 @@ export async function ListingPage({
   scope,
   searchParams,
   activeCategorySlug,
+  topContent,
 }: {
   title: string;
   subtitle?: string;
@@ -79,6 +80,8 @@ export async function ListingPage({
   scope: Partial<ListFilters>;
   searchParams: ListingSearch;
   activeCategorySlug?: string | null;
+  /** Optional block rendered under the heading — used by `/search` for taxonomy hits. */
+  topContent?: React.ReactNode;
 }) {
   const parsed = parseListingQuery(searchParams);
   const nav = await getNav();
@@ -97,6 +100,18 @@ export async function ListingPage({
   const { cards, total, page, perPage } = await listProducts(filters);
   const pages = Math.max(1, Math.ceil(total / perPage));
   const raw = { ...parsed.raw, ...(brandSlug ? { brand: brandSlug } : {}) };
+
+  // An empty result means one of two different things, and saying "nothing
+  // matches" for both is wrong: either the customer's filters/word hid the
+  // results, or the scope itself (a sport with no stock yet) is genuinely
+  // empty. Only the first one is the customer's to fix.
+  const narrowed = Boolean(
+    parsed.q ||
+      brandSlug ||
+      parsed.min_price !== undefined ||
+      parsed.max_price !== undefined ||
+      Object.keys(parsed.attr ?? {}).length > 0,
+  );
 
   return (
     <main>
@@ -123,12 +138,18 @@ export async function ListingPage({
       </div>
       {subtitle && <p className="sold">{subtitle}</p>}
 
+      {topContent}
+
       <ListingControls base={scope} current={{ ...raw, ...(scope.q ? { q: scope.q } : {}) }} />
 
       {cards.length === 0 ? (
         <div className="box" role="status">
-          <h2>Nothing matches</h2>
-          <p className="sold">Try fewer filters, a different word, or browse the full shop.</p>
+          <h2>{narrowed ? "Nothing matches" : "Nothing here yet"}</h2>
+          <p className="sold">
+            {narrowed
+              ? "Try fewer filters, a different word, or browse the full shop."
+              : "No products are listed here yet. Try another sport, or browse the full shop."}
+          </p>
           <Link className="btn" href="/shop">
             Browse everything
           </Link>

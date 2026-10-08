@@ -6,9 +6,10 @@ import { requireAdmin } from "@/lib/auth/requireAdmin";
 import { setSetting } from "@/lib/settings";
 import { writeAudit } from "@/lib/catalog/audit";
 
+/** The domain allowlist shapes what the shop may import: owner-only (SECURITY.md §2). */
 async function adminOrRedirect() {
   try {
-    return await requireAdmin();
+    return await requireAdmin(["owner"]);
   } catch {
     redirect("/admin/login");
   }

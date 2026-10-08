@@ -15,6 +15,7 @@ import { z } from "zod";
 
 export const SECTION_TYPES = [
   "hero",
+  "sport_tiles",
   "category_tiles",
   "product_grid",
   "promo_strip",
@@ -26,6 +27,10 @@ export type SectionType = (typeof SECTION_TYPES)[number];
 
 export const SECTION_LABELS: Record<SectionType, { name: string; hint: string }> = {
   hero: { name: "Hero carousel", hint: "Full-width slides with a photo, headline and button." },
+  sport_tiles: {
+    name: "Shop by sport",
+    hint: "Photo tiles for the sports you sell. Names, photos, order and which sports are promoted all come from the Sports list.",
+  },
   category_tiles: { name: "Category chips", hint: "The scrolling chip row of categories." },
   product_grid: { name: "Product grid", hint: "A row of product cards, from a rule or hand-picked." },
   promo_strip: { name: "Trust strip", hint: "Short promises in a row (delivery, payment, returns)." },
@@ -39,10 +44,29 @@ const hrefField = z
   .trim()
   .max(300)
   .refine(
-    (v) => v === "" || v.startsWith("/") || /^https?:\/\//.test(v),
+    (v) =>
+      v === "" ||
+      // Single leading slash only: `//evil.example` looks internal but the
+      // browser treats it as a protocol-relative EXTERNAL url (open redirect).
+      /^\/(?!\/)/.test(v) ||
+      /^https?:\/\//.test(v),
     "Links must start with / or http(s)://",
   )
   .default("/shop");
+
+/**
+ * Trust-strip copy that is actually true of the shop today.
+ *
+ * Corrected in the 2026-10-08 pass: the design's original strip advertised
+ * "Free delivery over LKR 10,000", "7-day easy returns" and "SMS and email
+ * order updates". None of those is true here — delivery rules are unentered
+ * (D5), the returns policy is unresolved (D7), and the notification channels
+ * ship disabled with no SMS/email provider (D4/D33). Advertising them is a
+ * claim the shop cannot honour, so only the supported fact remains. The strip
+ * is CMS data: the owner adds real promises in the page builder once they are
+ * true (e.g. after entering delivery rules in /admin/shipping).
+ */
+export const DEFAULT_TRUST_ITEMS: readonly string[] = ["Cash on delivery"];
 
 /** The design's own hero gradient — the default for a new slide. */
 export const DEFAULT_HERO_BACKGROUND = "linear-gradient(120deg,#062418,#0f4a33)";
@@ -52,7 +76,13 @@ const gradientField = z
   .trim()
   .max(200)
   .refine(
-    (v) => v === "" || /^(linear-gradient|radial-gradient)\([^;{}]*$/.test(v),
+    (v) =>
+      v === "" ||
+      (/^(linear-gradient|radial-gradient)\([^;{}]*$/.test(v) &&
+        // The value is interpolated into a React inline style, so `url(...)`
+        // (external fetch / data exfiltration pixel), `expression(...)`,
+        // `@import` and angle brackets have no business being in a gradient.
+        !/url\s*\(|expression\s*\(|@import|javascript:|data:|behavior|binding|[<>]/i.test(v)),
     "Use a plain CSS gradient, e.g. linear-gradient(120deg,#062418,#0f4a33)",
   )
   .default(DEFAULT_HERO_BACKGROUND);
@@ -76,6 +106,20 @@ export const heroSlideSchema = z.object({
 
 export const heroSchema = z.object({
   slides: z.array(heroSlideSchema).min(1, "A carousel needs at least one slide.").max(6),
+});
+
+// ---------- shop by sport ----------
+
+/**
+ * Sport tiles. The list itself is NOT stored here: it is read live from the
+ * sports taxonomy on every render, so adding, renaming, hiding, reordering or
+ * re-photographing a sport under /admin/sports shows up on the storefront with
+ * nothing to republish. This section only owns the heading and the cap — and
+ * removing it removes the block from the homepage.
+ */
+export const sportTilesSchema = z.object({
+  title: z.string().trim().max(80).default("Shop by sport"),
+  limit: z.coerce.number().int().min(1).max(12).default(12),
 });
 
 // ---------- category tiles ----------
@@ -130,6 +174,7 @@ export const richTextSchema = z.object({
 
 export const SECTION_SCHEMAS = {
   hero: heroSchema,
+  sport_tiles: sportTilesSchema,
   category_tiles: categoryTilesSchema,
   product_grid: productGridSchema,
   promo_strip: promoStripSchema,
@@ -139,6 +184,7 @@ export const SECTION_SCHEMAS = {
 
 export type SectionContentMap = {
   hero: z.infer<typeof heroSchema>;
+  sport_tiles: z.infer<typeof sportTilesSchema>;
   category_tiles: z.infer<typeof categoryTilesSchema>;
   product_grid: z.infer<typeof productGridSchema>;
   promo_strip: z.infer<typeof promoStripSchema>;
@@ -179,6 +225,8 @@ export function defaultContent(type: SectionType): SectionContent {
           },
         ],
       };
+    case "sport_tiles":
+      return { title: "Shop by sport", limit: 12 };
     case "category_tiles":
       return { title: "", limit: 12 };
     case "product_grid":
@@ -191,14 +239,7 @@ export function defaultContent(type: SectionType): SectionContent {
         product_ids: [],
       };
     case "promo_strip":
-      return {
-        items: [
-          "Free delivery over LKR 10,000",
-          "Cash on delivery",
-          "7-day easy returns",
-          "SMS and email order updates",
-        ],
-      };
+      return { items: [...DEFAULT_TRUST_ITEMS] };
     case "promo_countdown":
       return { title: "Deal of the day", text: "", ends_at: "", label: "Shop the deal", href: "/shop" };
     case "rich_text":
@@ -216,6 +257,10 @@ export function sectionSummary(type: SectionType, content: unknown): string {
       const c = parsed as SectionContentMap["hero"];
       const titles = c.slides.map((s) => s.title).join(", ");
       return `${c.slides.length} slide${c.slides.length === 1 ? "" : "s"}: ${titles}`;
+    }
+    case "sport_tiles": {
+      const c = parsed as SectionContentMap["sport_tiles"];
+      return `Up to ${c.limit} sports from the Sports list${c.title ? ` · ${c.title}` : ""}`;
     }
     case "category_tiles": {
       const c = parsed as SectionContentMap["category_tiles"];
@@ -281,6 +326,9 @@ export function contentFromForm(type: SectionType, fd: FormData): FormParseResul
       raw = { slides };
       break;
     }
+    case "sport_tiles":
+      raw = { title: text(fd, "title"), limit: fd.get("limit") };
+      break;
     case "category_tiles":
       raw = { title: text(fd, "title"), limit: fd.get("limit") };
       break;

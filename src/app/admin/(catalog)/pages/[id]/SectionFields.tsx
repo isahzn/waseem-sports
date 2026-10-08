@@ -77,6 +77,29 @@ export function SectionFields({
       );
     }
 
+    case "sport_tiles": {
+      const c = content as { title?: string; limit?: number };
+      return (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="font-semibold">Heading</span>
+              <input name="title" defaultValue={c.title ?? "Shop by sport"} maxLength={80} className={inputClass} />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="font-semibold">How many sports</span>
+              <input type="number" name="limit" min={1} max={12} defaultValue={c.limit ?? 12} className={inputClass} />
+            </label>
+          </div>
+          <p className="mt-2 text-xs text-muted">
+            The tiles themselves come from the Sports list — add a sport, upload its photo, set its
+            order, or untick &ldquo;Show in Shop by sport&rdquo; there. Hiding this section removes the
+            block from the homepage without touching any sport.
+          </p>
+        </>
+      );
+    }
+
     case "category_tiles": {
       const c = content as { title?: string; limit?: number };
       return (

@@ -140,7 +140,20 @@ const slugify = (s) =>
 const COLOURS = ["Red", "Grey", "Blue", "White", "Green", "Yellow", "Navy", "Pink", "Black", "Maroon"];
 
 /** Sports/categories in the mockup's order (its CATS list, minus "All"). */
-const SPORTS = ["Football", "Basketball", "Badminton", "Swimming", "Skating", "Fitness", "Accessories"];
+// The owner's own running order. Cricket and Tennis are listed because the shop
+// presents them as main sports; neither has products yet, and a sport with no
+// products renders an honest empty page rather than inventing stock.
+const SPORTS = [
+  "Football",
+  "Basketball",
+  "Badminton",
+  "Cricket",
+  "Tennis",
+  "Skating",
+  "Swimming",
+  "Fitness",
+  "Accessories",
+];
 /** Brands only where the mockup's product name actually mentions one. */
 const BRANDS = ["Allpor", "Speedo", "Gold Cup", "Yonex", "Mikasa", "Strich"];
 
@@ -476,7 +489,11 @@ async function seedShipping() {
       country_codes: ["LK"],
       regions: [],
       fee: 450,
-      free_over: 10000,
+      // No free-delivery threshold: "free over LKR 10,000" was the mockup's
+      // claim, not a policy the owner has set (D5). Seeding it back would
+      // advertise something the shop has not agreed to. The owner enters a real
+      // threshold in /admin/shipping if they decide to offer one.
+      free_over: null,
       est_days_min: 1,
       est_days_max: 2,
       is_active: true,
@@ -488,7 +505,7 @@ async function seedShipping() {
       country_codes: ["LK"],
       regions: [],
       fee: 700,
-      free_over: 10000,
+      free_over: null, // see the note on the rule above
       est_days_min: 3,
       est_days_max: 5,
       is_active: true,
@@ -541,6 +558,7 @@ const HOME_SECTIONS = [
       ],
     },
   },
+  { type: "sport_tiles", content: { title: "Shop by sport", limit: 12 } },
   { type: "category_tiles", content: { title: "", limit: 12 } },
   {
     type: "product_grid",
@@ -552,7 +570,9 @@ const HOME_SECTIONS = [
   },
   {
     type: "promo_strip",
-    content: { items: ["Free delivery over LKR 10,000", "Cash on delivery", "7-day easy returns", "SMS and email order updates"] },
+    // Only promises the shop can actually honour: delivery rules are unentered
+    // (D5), returns are unresolved (D7) and no SMS/email provider exists (D4).
+    content: { items: ["Cash on delivery"] },
   },
 ];
 
@@ -561,7 +581,7 @@ const DEMO_PAGES = [
     slug: "home",
     title: "Home",
     seo_title: "Waseem Sports — Sports Gear in Sri Lanka",
-    seo_description: "Quality sports gear in Colombo, Sri Lanka. Cash on delivery, island-wide shipping.",
+    seo_description: "Quality sports gear in Colombo, Sri Lanka. Cash on delivery.",
     sections: HOME_SECTIONS,
   },
   {
@@ -596,10 +616,8 @@ const DEMO_PAGES = [
         content: {
           title: "Delivery and payment",
           body:
-            "How much is delivery? — Colombo and suburbs: LKR 450, free over LKR 10,000. Islandwide: LKR 700, free over LKR 10,000.\n" +
-            "How long does it take? — Colombo and suburbs arrive in about 1–2 days; islandwide in about 3–5 days.\n" +
-            "Can I pay cash? — Yes. Every order is cash on delivery, and no card details are taken online.\n" +
-            "Is there a delivery charge on small orders? — Yes: the fee above applies until the order passes the free-delivery threshold.",
+            "How much is delivery? — The cost depends on where you are. We confirm it with you before your order is packed.\n" +
+            "Can I pay cash? — Yes. Every order is cash on delivery, and no card details are taken online.",
         },
       },
       {
@@ -608,7 +626,7 @@ const DEMO_PAGES = [
           title: "Orders and returns",
           body:
             "How do I follow my order? — Use the private link from checkout, or the Track order page with your order number and code. We show the status as it moves from confirmed to processing, shipped and delivered.\n" +
-            "Can I return something? — 7-day easy returns.\n" +
+            "Can I return something? — Message the shop with your order number and we will tell you what we can do.\n" +
             "Do I need an account? — No. Checkout is guest-only; the orders you place on a device are listed under Account on that device.",
         },
       },

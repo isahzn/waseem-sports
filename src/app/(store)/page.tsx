@@ -3,7 +3,7 @@ import { SectionList } from "./_components/SectionList";
 
 export const metadata = {
   title: "Waseem Sports — Sports Gear in Sri Lanka",
-  description: "Quality sports gear in Colombo, Sri Lanka. Cash on delivery, island-wide shipping.",
+  description: "Quality sports gear in Colombo, Sri Lanka. Cash on delivery.",
 };
 
 /**

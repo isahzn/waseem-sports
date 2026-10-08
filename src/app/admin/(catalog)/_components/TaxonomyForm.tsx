@@ -29,11 +29,18 @@ export function TaxonomyForm({
   action,
   initial,
   imageAltLabel,
+  featuredLabel,
   submitLabel,
 }: {
   action: (prev: TaxonomyFormState, formData: FormData) => Promise<TaxonomyFormState>;
   initial?: TaxonomyInitial;
   imageAltLabel: string;
+  /**
+   * Sports only: what "Featured" means for this taxonomy is "promoted in the
+   * homepage Shop by sport tiles", so pass that fuller wording and the box
+   * explains itself. Brands leave it out and keep the plain "Featured" label.
+   */
+  featuredLabel?: string;
   submitLabel: string;
 }) {
   const [state, formAction, pending] = useActionState(action, {});
@@ -92,10 +99,14 @@ export function TaxonomyForm({
         </label>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" name="is_featured" defaultChecked={initial?.is_featured ?? false} />
-          Featured
+          {featuredLabel ?? "Featured"}
         </label>
       </div>
-      <Field label="Sort order" hint="Lower numbers appear first." errors={fe.sort_order}>
+      <Field
+        label="Sort order"
+        hint="Lower numbers appear first — this is the order the tiles and navigation use."
+        errors={fe.sort_order}
+      >
         <input
           type="number"
           name="sort_order"

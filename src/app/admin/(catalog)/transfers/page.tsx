@@ -33,22 +33,23 @@ export default async function TransfersAdmin({
     <main>
       <h1 className="font-display text-3xl font-bold">Bank transfers</h1>
       <p className="mt-1 max-w-2xl text-sm text-muted">
-        Sandbox prototype — mock provider only, no real money moves. A transfer is created below, then it must be
-        explicitly confirmed on its own screen before anything executes.
+        A transfer is created below as a request, then explicitly confirmed on its own screen before it executes.
+        Execution only happens through the configured payment provider — until a provider is connected and verified,
+        no funds leave the shop.
       </p>
       <FormError message={error} />
 
       <h2 className="mt-8 font-display text-xl font-bold">New transfer</h2>
       <form action={createTransferAction} className="mt-3 grid gap-3 rounded-md border border-line bg-card p-4 sm:grid-cols-2">
         <input type="hidden" name="idempotency_key" value={idempotencyKey} />
-        <Field label="Sandbox payment method">
+        <Field label="Payment method">
           <select name="sender_method" defaultValue="sandbox_balance" className="rounded-sm border border-line bg-surface px-3 py-2">
-            <option value="sandbox_balance">Sandbox balance</option>
-            <option value="sandbox_card">Sandbox test card</option>
+            <option value="sandbox_balance">Balance</option>
+            <option value="sandbox_card">Card</option>
           </select>
         </Field>
-        <Field label="Sandbox account" hint="Test identifier only — never a real account or password.">
-          <input name="sender_account_ref" required maxLength={80} defaultValue="sandbox-main" className="rounded-sm border border-line bg-surface px-3 py-2" />
+        <Field label="Source account" hint="Identifier for the account funding this transfer. Never enter a password here.">
+          <input name="sender_account_ref" required maxLength={80} defaultValue="main-account" className="rounded-sm border border-line bg-surface px-3 py-2" />
         </Field>
         <Field label="Recipient full name">
           <input name="recipient_name" required maxLength={120} placeholder="Ahmed" className="rounded-sm border border-line bg-surface px-3 py-2" />
@@ -65,7 +66,7 @@ export default async function TransfersAdmin({
         <Field label="Phone / email (optional)">
           <input name="recipient_contact" maxLength={120} className="rounded-sm border border-line bg-surface px-3 py-2" />
         </Field>
-        <Field label="Reference (optional)" hint='Try "HOLD" to test processing, "DOWN" for outage, "TIMEOUT" for timeout.'>
+        <Field label="Reference (optional)" hint="Optional note stored with the transfer and sent to the provider.">
           <input name="reference" maxLength={80} className="rounded-sm border border-line bg-surface px-3 py-2" />
         </Field>
         <Field label="Amount">

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getShopInfo } from "@/lib/storefront/catalog";
+import { whatsappHref } from "@/lib/storefront/contact-links";
 
 export const metadata = {
   title: "Find us — Waseem Sports",
@@ -17,13 +18,16 @@ export default async function StoreLocatorPage() {
   const phone2 = info["public.store_phone_2"];
   const whatsapp = info["public.store_whatsapp"];
   const hours = info["public.store_hours"];
+  // wa.me needs a full international number; null means the row shows the number
+  // without a link rather than a link that opens nothing.
+  const waHref = whatsappHref(whatsapp ?? "");
 
   const hasStore = Boolean(address || phone || whatsapp);
 
   return (
     <main>
       <h1 style={{ fontSize: "40px" }}>Find us</h1>
-      <p className="sold">Cash on delivery islandwide · orders can be collected in person too.</p>
+      <p className="sold">Cash on delivery · orders can be collected in person too.</p>
 
       {hasStore ? (
         <div className="box">
@@ -47,15 +51,11 @@ export default async function StoreLocatorPage() {
             </div>
           )}
 
-          {whatsapp && (
+          {whatsapp && waHref && (
             <div className="row">
               <span>WhatsApp</span>
               <b>
-                <a
-                  href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                >
+                <a href={waHref} target="_blank" rel="noreferrer noopener">
                   {whatsapp}
                 </a>
               </b>

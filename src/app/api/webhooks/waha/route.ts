@@ -55,6 +55,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unreadable body." }, { status: 400 });
   }
   if (!raw) return NextResponse.json({ error: "Empty body." }, { status: 400 });
+  // Webhook payloads are stored verbatim in `webhook_events`: cap the body
+  // so a signed-but-chatty sender cannot turn the table into a disk filler.
+  if (raw.length > 256 * 1024) {
+    logger.warn("waha webhook rejected: body too large", { bytes: raw.length });
+    return NextResponse.json({ error: "Body too large." }, { status: 413 });
+  }
 
   if (!verifyWahaSignature(raw, signatureFrom(request), key)) {
     logger.warn("waha webhook rejected: bad or missing signature", { bytes: raw.length });

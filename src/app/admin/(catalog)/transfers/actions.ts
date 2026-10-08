@@ -8,9 +8,14 @@ import { cancelTransfer, confirmTransfer, createTransfer } from "@/lib/transfers
 import { formAmount } from "@/lib/transfers/schemas";
 import { logger } from "@/lib/security/logger";
 
+/**
+ * Money movement is owner-only (SECURITY.md §2: only the owner touches
+ * payments). Creating, confirming or cancelling a transfer as staff is
+ * rejected before any provider call. Reads stay open to every admin role.
+ */
 async function adminOrRedirect() {
   try {
-    return await requireAdmin();
+    return await requireAdmin(["owner"]);
   } catch {
     redirect("/admin/login");
   }
@@ -28,7 +33,7 @@ export async function createTransferAction(formData: FormData): Promise<void> {
   const { row, error } = await createTransfer(
     {
       sender_method: str(formData, "sender_method") || "sandbox_balance",
-      sender_account_ref: str(formData, "sender_account_ref") || "sandbox-main",
+      sender_account_ref: str(formData, "sender_account_ref") || "main-account",
       recipient_name: str(formData, "recipient_name"),
       recipient_bank: str(formData, "recipient_bank"),
       recipient_account: str(formData, "recipient_account"),

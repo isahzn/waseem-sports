@@ -4,6 +4,7 @@ import { priceCart } from "@/lib/storefront/cart";
 import { readCartFromCookies } from "@/lib/storefront/cart-server";
 import { getShippingOptions } from "@/lib/orders/queries";
 import { getShopInfo } from "@/lib/storefront/catalog";
+import { whatsappHref } from "@/lib/storefront/contact-links";
 import { CheckoutForm, type CheckoutLine, type DeliveryOption } from "./CheckoutForm";
 
 export const metadata: Metadata = {
@@ -49,6 +50,9 @@ export default async function CheckoutPage() {
   if (options.length === 0) {
     const whatsapp = info["public.store_whatsapp"] ?? null;
     const phone = info["public.store_phone_1"] ?? null;
+    // wa.me needs a full international number; this helper returns null when the
+    // setting cannot become a working link, so no dead link is ever rendered.
+    const waHref = whatsappHref(whatsapp ?? "");
     return (
       <main>
         <h1 style={{ fontSize: "40px" }}>Checkout</h1>
@@ -58,8 +62,8 @@ export default async function CheckoutPage() {
             The shop hasn&apos;t set up delivery options yet. Your cart is saved — message us and we&apos;ll take the order
             directly.
           </p>
-          {whatsapp && (
-            <a className="btn" href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`}>
+          {whatsapp && waHref && (
+            <a className="btn" href={waHref} target="_blank" rel="noreferrer noopener">
               WhatsApp {whatsapp}
             </a>
           )}{" "}

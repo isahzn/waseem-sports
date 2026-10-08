@@ -1,4 +1,12 @@
 import { passcodeGateEnabled } from "@/lib/auth/passcode";
+
+/**
+ * Per-request, never statically prerendered (PHASE 10): the passcode/account
+ * mode comes from `ADMIN_PASSCODE`, and an operator must be able to flip it
+ * with a restart — not a rebuild. Without this the mode bakes in at build
+ * time and unsetting the variable would silently keep the old form.
+ */
+export const dynamic = "force-dynamic";
 import { LoginForm } from "./LoginForm";
 
 export const metadata = { title: "Admin sign in — Waseem Sports" };

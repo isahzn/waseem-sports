@@ -22,6 +22,9 @@ function formValues(formData: FormData) {
     slug: formText(formData.get("slug")) ?? "",
     description: formText(formData.get("description")),
     is_visible: formBool(formData.get("is_visible")),
+    // For a sport, `is_featured` means "promoted in the homepage Shop by sport
+    // tiles" — the one switch that puts a sport on the landing page without
+    // making it unreachable anywhere else. Unticked (absent) = not promoted.
     is_featured: formBool(formData.get("is_featured")),
     sort_order: formNumber(formData.get("sort_order")) ?? 0,
     image_alt: formText(formData.get("imageAlt")),
@@ -154,4 +157,63 @@ export async function archiveSport(_prev: ConfirmState, formData: FormData): Pro
 
 export async function restoreSport(_prev: ConfirmState, formData: FormData): Promise<ConfirmState> {
   return setArchived(String(formData.get("id") ?? ""), false);
+}
+
+/**
+ * Reorder: move one sport one place up (-1) or down (+1) in the list.
+ *
+ * A plain form action (not `useActionState`) because it has no error state to
+ * show: an out-of-range move is a no-op, and the list re-renders either way.
+ *
+ * The whole active list is renumbered afterwards. That looks heavier than
+ * swapping two rows, and it is deliberately so: the owner may have typed the
+ * same sort_order on several sports or left gaps, in which case swapping two
+ * numbers visibly does nothing. Renumbering makes the list match what is on
+ * screen and keeps the storefront's tile/nav order identical to it.
+ */
+export async function moveSport(formData: FormData): Promise<void> {
+  let admin;
+  try {
+    admin = await requireAdmin();
+  } catch {
+    return;
+  }
+
+  const id = String(formData.get("id") ?? "");
+  const dir = Number(formData.get("dir"));
+  if (!z.string().uuid().safeParse(id).success) return;
+  if (dir !== -1 && dir !== 1) return;
+
+  const db = adminDb();
+  const { data } = await db
+    .from("sports")
+    .select("id,sort_order")
+    .is("deleted_at", null)
+    .order("sort_order", { ascending: true })
+    .order("name", { ascending: true });
+  const rows = data ?? [];
+  const from = rows.findIndex((r) => r.id === id);
+  if (from < 0) return;
+  const to = from + dir;
+  if (to < 0 || to >= rows.length) return;
+
+  const order = rows.map((r) => r.id);
+  [order[from], order[to]] = [order[to], order[from]];
+  const previous = new Map(rows.map((r) => [r.id, r.sort_order]));
+
+  const results = await Promise.all(
+    order.map((rowId, index) =>
+      previous.get(rowId) === index
+        ? Promise.resolve({ error: null })
+        : db.from("sports").update({ sort_order: index }).eq("id", rowId),
+    ),
+  );
+  if (results.some((r) => r.error)) {
+    logger.error("sport reorder failed", { id, dir });
+    return;
+  }
+
+  await writeAudit({ actor: admin.userId, action: "sport.reorder", entity: "sports", entityId: id });
+  revalidatePath("/admin/sports");
+  revalidatePath("/");
 }

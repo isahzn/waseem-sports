@@ -56,13 +56,13 @@ export class MockBankProvider implements PaymentProvider {
     const max = envNumber("MOCK_BANK_MAX_AMOUNT", 1000000);
 
     if (input.amount > max) {
-      return { ok: false, status: "failed", code: "TRANSFER_LIMIT", message: "Amount is above the sandbox limit." };
+      return { ok: false, status: "failed", code: "TRANSFER_LIMIT", message: "Amount is above the transfer limit." };
     }
     if (/0{4}$/.test(input.recipient_account.replace(/[\- ]/g, ""))) {
-      return { ok: false, status: "failed", code: "INVALID_ACCOUNT", message: "Recipient account failed sandbox validation." };
+      return { ok: false, status: "failed", code: "INVALID_ACCOUNT", message: "Recipient account could not be validated." };
     }
     if (input.amount > ledgerBalance) {
-      return { ok: false, status: "failed", code: "INSUFFICIENT_FUNDS", message: "Sandbox balance is too low for this transfer." };
+      return { ok: false, status: "failed", code: "INSUFFICIENT_FUNDS", message: "Available balance is too low for this transfer." };
     }
     if (ref.includes("DOWN")) throw new Error("BANK_UNAVAILABLE: mock bank is offline");
     if (ref.includes("TIMEOUT")) {
@@ -86,7 +86,7 @@ export class MockBankProvider implements PaymentProvider {
     // Second poll settles it (PROCESSING -> COMPLETED) unless funds ran out.
     if (held.amount > ledgerBalance) {
       processing.delete(provider_tx_id);
-      return { provider_tx_id, status: "failed", code: "INSUFFICIENT_FUNDS", message: "Sandbox balance is too low." };
+      return { provider_tx_id, status: "failed", code: "INSUFFICIENT_FUNDS", message: "Available balance is too low." };
     }
     processing.delete(provider_tx_id);
     ledgerBalance = Math.round((ledgerBalance - held.amount) * 100) / 100;

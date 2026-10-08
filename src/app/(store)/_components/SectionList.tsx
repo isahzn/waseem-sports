@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { parseSectionContent } from "@/lib/cms/sections";
 import type { RenderedSection } from "@/lib/cms/pages";
-import { getNav, listProducts } from "@/lib/storefront/catalog";
+import { getNav, getShopBySport, listProducts } from "@/lib/storefront/catalog";
 import { publicImageUrl } from "@/lib/storefront/images";
 import { ProductCard } from "./ProductCard";
 import { Hero, type HeroSlide } from "./Hero";
@@ -26,6 +26,48 @@ async function HeroSection({ content }: { content: Record<string, unknown> }) {
     image: s.image_path ? { src: publicImageUrl(s.image_path), alt: "" } : null,
   }));
   return <Hero slides={slides} />;
+}
+
+/**
+ * "Shop by sport" — the primary way into the catalog: one photo tile per sport
+ * the owner has chosen to promote. The tiles are read live from the sports
+ * taxonomy (name, photo, order, which sports appear), so this section only owns
+ * its heading and cap; the owner manages the rest under /admin/sports.
+ */
+async function SportTilesSection({ content }: { content: Record<string, unknown> }) {
+  const c = parseSectionContent("sport_tiles", content);
+  if (!c) return null;
+  const tiles = await getShopBySport(c.limit);
+  if (tiles.length === 0) return null;
+  return (
+    <>
+      <div className="sec">
+        <h2>{c.title || "Shop by sport"}</h2>
+        <Link className="btn out" href="/shop">
+          All products
+        </Link>
+      </div>
+      <div className="sports">
+        {tiles.map((tile) => (
+          <Link className="sport" key={tile.id} href={`/sport/${tile.slug}`}>
+            {tile.image_path ? (
+              /* eslint-disable-next-line @next/next/no-img-element -- pre-made derivative, served directly (see lib/storefront/images.ts) */
+              <img
+                src={publicImageUrl(tile.image_path)}
+                // Decorative: the sport name below is already the link's text,
+                // so repeating the alt text here would say it twice.
+                alt=""
+                width={640}
+                height={420}
+                loading="lazy"
+              />
+            ) : null}
+            <b className="nm">{tile.name}</b>
+          </Link>
+        ))}
+      </div>
+    </>
+  );
 }
 
 async function CategoryTilesSection({ content }: { content: Record<string, unknown> }) {
@@ -151,6 +193,8 @@ export async function SectionList({ sections }: { sections: RenderedSection[] })
         switch (section.type) {
           case "hero":
             return <HeroSection key={section.id} content={section.content} />;
+          case "sport_tiles":
+            return <SportTilesSection key={section.id} content={section.content} />;
           case "category_tiles":
             return <CategoryTilesSection key={section.id} content={section.content} />;
           case "product_grid":

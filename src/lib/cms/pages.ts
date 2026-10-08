@@ -86,20 +86,29 @@ export function defaultLandingSections(): RenderedSection[] {
         ],
       },
     },
-    { id: "default-cats", type: "category_tiles", sort_order: 1, content: { title: "", limit: 12 } },
+    // Shop by sport comes before the category chips: the game a customer plays
+    // is the way they shop here, and it is the one route into the catalog that
+    // needs no typing.
+    {
+      id: "default-sports",
+      type: "sport_tiles",
+      sort_order: 1,
+      content: defaultContent("sport_tiles"),
+    },
+    { id: "default-cats", type: "category_tiles", sort_order: 2, content: { title: "", limit: 12 } },
     {
       id: "default-best",
       type: "product_grid",
-      sort_order: 2,
+      sort_order: 3,
       content: { title: "Best sellers", source: "featured", limit: 5, link_label: "", link_href: "", product_ids: [] },
     },
     {
       id: "default-picked",
       type: "product_grid",
-      sort_order: 3,
+      sort_order: 4,
       content: { title: "Picked for you", source: "newest", limit: 12, link_label: "See all", link_href: "/shop", product_ids: [] },
     },
-    { id: "default-trust", type: "promo_strip", sort_order: 4, content: defaultContent("promo_strip") },
+    { id: "default-trust", type: "promo_strip", sort_order: 5, content: defaultContent("promo_strip") },
   ];
 }
 

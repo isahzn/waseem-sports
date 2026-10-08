@@ -3,6 +3,14 @@ import { createClient } from "@/lib/supabase/server";
 import { getVariantStock } from "./availability";
 
 export type NavSport = { id: string; name: string; slug: string };
+/** A "Shop by sport" tile: the sport's name plus the photo the owner uploaded. */
+export type SportTile = {
+  id: string;
+  name: string;
+  slug: string;
+  image_path: string | null;
+  image_alt: string | null;
+};
 export type NavCategory = { id: string; name: string; slug: string; sport_id: string | null };
 
 export type ProductCard = {
@@ -38,6 +46,39 @@ export type ListFilters = {
 };
 
 export const PER_PAGE = 24;
+
+/**
+ * The sports to promote on the landing page, in the owner's order.
+ *
+ * Read live from the taxonomy rather than stored in the section content, so a
+ * rename, reorder, photo change or hide/unhide under /admin/sports is visible on
+ * the storefront immediately with nothing to republish.
+ *
+ * Two switches decide what appears, and they mean different things:
+ *   is_visible   the sport exists for shoppers at all (nav, listing, its page).
+ *   is_featured  "promote this in the homepage tiles" — the per-sport control
+ *                for the landing page. Untick it and the sport keeps its page
+ *                and its place in navigation, but loses its tile.
+ * With no sport featured the section renders nothing, which is also how the
+ * owner removes it for one sport at a time without touching the page builder.
+ *
+ * A read failure returns no tiles — the landing page keeps its other sections
+ * instead of erroring out.
+ */
+export async function getShopBySport(limit = 12): Promise<SportTile[]> {
+  const db = await createClient();
+  const { data, error } = await db
+    .from("sports")
+    .select("id,name,slug,image_path,image_alt")
+    .eq("is_visible", true)
+    .eq("is_featured", true)
+    .is("deleted_at", null)
+    .order("sort_order")
+    .order("name")
+    .limit(Math.min(Math.max(Math.trunc(limit) || 12, 1), 12));
+  if (error) return [];
+  return data ?? [];
+}
 
 type Db = Awaited<ReturnType<typeof createClient>>;
 
@@ -152,6 +193,151 @@ function cleanSearch(q: string): string {
   return q.replace(/[,()]/g, " ").trim().slice(0, 100);
 }
 
+/** Upper bound on rows pulled back per search facet (keeps the query bounded). */
+const SEARCH_FACET_LIMIT = 300;
+/** Upper bound on matched ids handed to the listing query. */
+const SEARCH_ID_LIMIT = 500;
+
+/**
+ * Build a `%term%` pattern safe to embed in a PostgREST filter.
+ *
+ * ILIKE wildcards and the characters PostgREST's `or()`/`like` grammar treats
+ * as syntax are stripped, so a customer typing `%` or `*` cannot widen the
+ * match, and a typed quote cannot break out of the filter.
+ */
+function likeTerm(term: string): string {
+  const bare = term.replace(/[%_*"'\\]/g, "").slice(0, 60);
+  return `%${bare}%`;
+}
+
+/**
+ * Resolve a search phrase to product ids, using everything the shop knows
+ * about a product: its own text, the taxonomy it sits in, its variants and its
+ * specs.
+ *
+ * Why matching only `products.name`/`slug` was wrong (the bug this fixes): the
+ * seeded badminton product is named "Yonex Double Racket", so neither its name
+ * nor its slug contains the word a customer types. "badminton" therefore
+ * returned nothing even though it is the correct, spelled-correctly word. The
+ * product is filed under the `badminton` sport and category; that is the link
+ * a shopper expects search to use.
+ *
+ * Terms are intersected, so `football boots` narrows to football boots rather
+ * than widening to everything matching either word. Every set is recomputed
+ * from the database on each search — nothing is cached or enumerated in code —
+ * so a product added in the admin is searchable on the very next query.
+ *
+ * Returns `null` when the phrase has no usable terms (1-character input),
+ * which lets the caller keep the plain name/slug behaviour.
+ */
+async function searchProductIds(db: Db, q: string): Promise<string[] | null> {
+  const terms = q
+    .split(/\s+/)
+    .map((t) => t.trim())
+    .filter((t) => t.length >= 2)
+    .slice(0, 6);
+  if (terms.length === 0) return null;
+
+  /** Ids of published, non-deleted products only — never leak drafts. */
+  const publishedIds = async (
+    column: "sport_id" | "category_id" | "brand_id",
+    values: string[],
+  ): Promise<string[]> => {
+    if (values.length === 0) return [];
+    const { data } = await db
+      .from("products")
+      .select("id")
+      .eq("status", "published")
+      .is("deleted_at", null)
+      .in(column, values)
+      .limit(SEARCH_FACET_LIMIT);
+    return (data ?? []).map((r) => r.id);
+  };
+
+  const perTerm: Set<string>[] = [];
+
+  for (const term of terms) {
+    const like = likeTerm(term);
+    const [ownText, sportRows, catRows, brandRows, variantRows, specRows] = await Promise.all([
+      db
+        .from("products")
+        .select("id")
+        .eq("status", "published")
+        .is("deleted_at", null)
+        .or(`name.ilike.${like},slug.ilike.${like},description.ilike.${like}`)
+        .limit(SEARCH_FACET_LIMIT),
+      db.from("sports").select("id").eq("is_visible", true).is("deleted_at", null).ilike("name", like).limit(SEARCH_FACET_LIMIT),
+      db.from("categories").select("id").eq("is_visible", true).is("deleted_at", null).ilike("name", like).limit(SEARCH_FACET_LIMIT),
+      db.from("brands").select("id").eq("is_visible", true).is("deleted_at", null).ilike("name", like).limit(SEARCH_FACET_LIMIT),
+      db
+        .from("product_variants")
+        .select("product_id")
+        .is("deleted_at", null)
+        .or(`name.ilike.${like},sku.ilike.${like}`)
+        .limit(SEARCH_FACET_LIMIT),
+      db.from("product_attribute_values").select("product_id").ilike("value_text", like).limit(SEARCH_FACET_LIMIT),
+    ]);
+
+    const ids = new Set<string>();
+    for (const row of ownText.data ?? []) ids.add(row.id);
+    for (const row of variantRows.data ?? []) ids.add(row.product_id);
+    for (const row of specRows.data ?? []) ids.add(row.product_id);
+
+    // Products filed under a sport / category / brand whose name matched.
+    const [bySport, byCategory, byBrand] = await Promise.all([
+      publishedIds("sport_id", (sportRows.data ?? []).map((r) => r.id)),
+      publishedIds("category_id", (catRows.data ?? []).map((r) => r.id)),
+      publishedIds("brand_id", (brandRows.data ?? []).map((r) => r.id)),
+    ]);
+    for (const id of [...bySport, ...byCategory, ...byBrand]) ids.add(id);
+
+    perTerm.push(ids);
+    // Nothing matched this term, so the AND can only get smaller: stop early.
+    if (ids.size === 0) break;
+  }
+
+  // AND across terms: keep only ids that matched every term.
+  let result: Set<string> = perTerm[0] ?? new Set<string>();
+  for (const ids of perTerm.slice(1)) {
+    result = new Set([...result].filter((id) => ids.has(id)));
+    if (result.size === 0) break;
+  }
+
+  return [...result].slice(0, SEARCH_ID_LIMIT);
+}
+
+export type TaxonomyHit = { id: string; name: string; slug: string; kind: "sport" | "category" };
+
+/**
+ * Sports and categories whose name matches the phrase, so the search page can
+ * offer a way into the right aisle even when no product matches yet (e.g. a
+ * sport the owner has created but not stocked). Never invents results — an
+ * unmatched word yields an empty list.
+ */
+export async function searchTaxonomy(q: string): Promise<TaxonomyHit[]> {
+  const terms = q
+    .split(/\s+/)
+    .map((t) => t.trim())
+    .filter((t) => t.length >= 2)
+    .slice(0, 4);
+  if (terms.length === 0) return [];
+
+  const db = await createClient();
+  const hits: TaxonomyHit[] = [];
+  for (const term of terms) {
+    const like = likeTerm(term);
+    const [sports, cats] = await Promise.all([
+      db.from("sports").select("id,name,slug").eq("is_visible", true).is("deleted_at", null).ilike("name", like).order("sort_order").limit(8),
+      db.from("categories").select("id,name,slug").eq("is_visible", true).is("deleted_at", null).ilike("name", like).order("name").limit(8),
+    ]);
+    for (const s of sports.data ?? []) hits.push({ ...s, kind: "sport" });
+    for (const c of cats.data ?? []) hits.push({ ...c, kind: "category" });
+  }
+  // De-duplicate (a word can match the same row on two passes).
+  const seen = new Set<string>();
+  return hits.filter((h) => (seen.has(`${h.kind}:${h.id}`) ? false : (seen.add(`${h.kind}:${h.id}`), true)));
+}
+
 /** Sort column + direction for the listing query (validated — never raw user input). */
 function sortSpec(sort: ListFilters["sort"]): { column: string; ascending: boolean } {
   switch (sort) {
@@ -195,7 +381,17 @@ export async function listProducts(
   if (filters.max_price !== undefined) query = query.lte("base_price", filters.max_price);
   if (filters.q) {
     const needle = cleanSearch(filters.q);
-    if (needle) query = query.or(`name.ilike.%${needle}%,slug.ilike.%${needle}%`);
+    if (needle) {
+      const matched = await searchProductIds(db, needle);
+      if (matched === null) {
+        // Too short to tokenise — keep the plain name/slug match.
+        query = query.or(`name.ilike.%${needle}%,slug.ilike.%${needle}%`);
+      } else if (matched.length === 0) {
+        return { cards: [], total: 0, page, perPage: PER_PAGE };
+      } else {
+        query = query.in("id", matched);
+      }
+    }
   }
   if (filters.attr && Object.keys(filters.attr).length > 0) {
     // Attribute filter via semi-join: products carrying ALL requested specs.
@@ -219,9 +415,17 @@ export async function listProducts(
   }
 
   const spec = sortSpec(filters.sort);
-  const { data, count, error } = await query
-    .order(spec.column, { ascending: spec.ascending })
-    .range(from, to);
+  const ordered = query.order(spec.column, { ascending: spec.ascending });
+  const { data, count, error } = await ordered.range(from, to);
+  if (error && /range/i.test(error.message)) {
+    // PostgREST answers 416 ("Requested range not satisfiable") when the
+    // requested offset starts past the last row — which a hand-typed or crafted
+    // `?page=99999` produces, since the page clamp alone cannot know how many
+    // rows exist. Ask for page 1 purely to read the real total, then render a
+    // normal empty page instead of throwing a 500 at the customer.
+    const first = await ordered.range(0, PER_PAGE - 1);
+    return { cards: [], total: first.count ?? 0, page, perPage: PER_PAGE };
+  }
   if (error) throw new Error(`Catalog query failed: ${error.message}`);
 
   const rows = data ?? [];

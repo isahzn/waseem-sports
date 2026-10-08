@@ -81,7 +81,18 @@ export async function checkRateLimit(
 }
 
 export function clientIp(headers: Headers): string {
+  // Proxies APPEND the client address they see, so a client-supplied value
+  // sits at the LEFT and the closest proxy's value at the RIGHT. Reading the
+  // first entry lets anyone choose their own rate-limit bucket by sending
+  // `X-Forwarded-For: <fresh-ip>` per request (measured bypass pre-PHASE-10).
+  // The last entry is the address the nearest proxy actually saw, which a
+  // client cannot freely rotate without controlling the proxy chain.
+  // Residual (VERIFY at deploy): if GoDaddy/Cloudflare overwrites rather than
+  // appends, prefer their documented header (e.g. CF-Connecting-IP) instead.
   const forwarded = headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0].trim();
-  return headers.get("x-real-ip") ?? "unknown";
+  if (forwarded) {
+    const parts = forwarded.split(",").map((p) => p.trim()).filter(Boolean);
+    if (parts.length > 0) return parts[parts.length - 1];
+  }
+  return headers.get("x-real-ip")?.trim() || "unknown";
 }

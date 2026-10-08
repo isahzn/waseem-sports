@@ -5,14 +5,17 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useCart } from "./CartProvider";
 
-/** Fallback announcement when the shop hasn't written one (canonical copy). */
-const DEFAULT_ANNOUNCEMENT = "Free delivery over LKR 10,000 · Cash on delivery islandwide";
-
 /**
  * Storefront header, matching the canonical design: gold announcement bar,
- * sticky pine bar with the wordmark, live search, the four nav links and the
- * cart with its gold count badge. The nav wraps on narrow screens (design
+ * sticky pine bar with the wordmark, live search, the customer nav links and
+ * the cart with its gold count badge. The nav wraps on narrow screens (design
  * behaviour) instead of collapsing into a drawer.
+ *
+ * The announcement bar renders only what the shop has actually configured
+ * (`public.announcement`). It used to fall back to the mockup's own promotion —
+ * "Free delivery over LKR 10,000 … islandwide" — which is not a real shop
+ * policy (the owner's delivery rules are still to be entered, D5), so nothing
+ * is substituted for it: no announcement configured, no bar.
  */
 export function Header({ announcement }: { announcement: string | null }) {
   const { preview, setOpen } = useCart();
@@ -23,17 +26,20 @@ export function Header({ announcement }: { announcement: string | null }) {
 
   const count = preview?.count ?? 0;
   const isOn = (href: string) => (pathname === href ? "on" : "");
+  const notice = announcement?.trim() ?? "";
 
+  // Customer-facing navigation only. The admin area has its own URL and shell
+  // and is never advertised to shoppers (a customer must not see management
+  // controls); it stays reachable at /admin for the owner.
   const links = [
     { href: "/", label: "Home" },
     { href: "/shop", label: "Shop" },
     { href: "/track", label: "Account" },
-    { href: "/admin", label: "Admin" },
   ];
 
   return (
     <>
-      <div className="top">{announcement || DEFAULT_ANNOUNCEMENT}</div>
+      {notice ? <div className="top">{notice}</div> : null}
       <header>
         <div className="bar">
           <Link className="logo" href="/" aria-label="Waseem Sports — home">

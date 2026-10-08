@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { getPage, getShopInfo } from "@/lib/storefront/catalog";
 import { getShippingOptions } from "@/lib/orders/queries";
 import { formatLKR } from "@/lib/storefront/money";
+import { whatsappHref } from "@/lib/storefront/contact-links";
 
 export const metadata: Metadata = {
   title: "FAQ — Waseem Sports",
@@ -17,15 +18,14 @@ type Item = { q: string; a: string };
  * rules, the shop's own contact facts, the checkout/order copy we already
  * ship, and any published `faq` CMS page. Nothing about returns, warranty or
  * delivery promises is invented here.
+ *
+ * Only facts this shop can honour are stated. Free-delivery thresholds and
+ * returns windows are NOT promised: delivery rules are unentered (D5) and the
+ * returns policy is unresolved (D7), so an answer that quoted either would be a
+ * claim the shop could not meet. Order updates are a phone call, not SMS or
+ * email — no SMS/email provider is configured and the notification channels
+ * ship disabled.
  */
-
-/** Copy already shipped on the home page's trust strip (reused, not invented). */
-const SHIPPED = {
-  freeOver: "Free delivery over LKR 10,000",
-  cod: "Cash on delivery",
-  returns: "7-day easy returns",
-  updates: "SMS and email order updates",
-};
 
 function etaText(min: number | null, max: number | null): string {
   if (min === null && max === null) return "";
@@ -100,7 +100,9 @@ export default async function FaqPage() {
     a: [
       rule.fee === 0 ? "Free" : formatLKR(rule.fee),
       rule.freeOver !== null ? `Free on orders over ${formatLKR(rule.freeOver)}.` : null,
-      etaText(rule.estDaysMin, rule.estDaysMax).replace(/^ — /, "Arrives in about "),
+      // `etaText` already includes the word "about" — stripping the whole
+      // " — about " prefix avoids the shipped "Arrives in about about 1–2 days".
+      etaText(rule.estDaysMin, rule.estDaysMax).replace(/^ — about /, "Arrives in about "),
     ]
       .filter(Boolean)
       .join(" · "),
@@ -108,7 +110,7 @@ export default async function FaqPage() {
   if (delivery.length === 0) {
     delivery.push({
       q: "How much is delivery?",
-      a: `${SHIPPED.freeOver}. Delivery is confirmed with you before the order is packed.`,
+      a: "The delivery cost depends on where you are. We confirm it with you before your order is packed and sent — there is no charge you have not agreed to.",
     });
   }
   delivery.push({
@@ -117,7 +119,7 @@ export default async function FaqPage() {
   });
 
   const payment: Item[] = [
-    { q: "How can I pay?", a: `${SHIPPED.cod} — pay the rider when your order arrives. No card details are taken online.` },
+    { q: "How can I pay?", a: "Cash on delivery — pay the rider when your order arrives. No card details are taken online." },
   ];
 
   const ordering: Item[] = [
@@ -129,13 +131,13 @@ export default async function FaqPage() {
       q: "How do I track my order?",
       a: "Your confirmation carries an order number and a tracking code. Enter both on the Track order page and you'll see the status and progress.",
     },
-    { q: "Will I hear from you?", a: SHIPPED.updates },
+    { q: "Will I hear from you?", a: "Yes. We call the number on your order to confirm it before we pack and send it." },
   ];
 
   const returns: Item[] = [
     {
       q: "Can I return something?",
-      a: `${SHIPPED.returns}. Message the shop with your order number and we'll take it from there.`,
+      a: "Our returns policy is not published yet, so we will not quote a window here. Message the shop with your order number and we'll tell you what we can do.",
     },
   ];
 
@@ -144,6 +146,9 @@ export default async function FaqPage() {
     [info["public.store_phone_1"], info["public.store_phone_2"]].filter(Boolean).join(" · ") || null,
   ].filter(Boolean) as string[];
   const whatsapp = info["public.store_whatsapp"];
+  // null for a value that cannot become a working wa.me link, so the row is
+  // shown as plain text instead of a link that opens nothing.
+  const waHref = whatsappHref(whatsapp ?? "");
 
   return (
     <main>
@@ -183,10 +188,10 @@ export default async function FaqPage() {
                 {fact}
               </p>
             ))}
-            {whatsapp && (
+            {whatsapp && waHref && (
               <p className="sold">
                 WhatsApp{" "}
-                <a href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`} className="underline">
+                <a href={waHref} className="underline" target="_blank" rel="noreferrer noopener">
                   {whatsapp}
                 </a>
               </p>

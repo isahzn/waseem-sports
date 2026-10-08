@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth/requireAdmin";
+import { AuthError, requireAdmin } from "@/lib/auth/requireAdmin";
 import { createTransfer, listTransfers } from "@/lib/transfers/service";
 import { logger } from "@/lib/security/logger";
 
@@ -14,9 +14,11 @@ export const dynamic = "force-dynamic";
 export async function POST(request: NextRequest) {
   let admin;
   try {
-    admin = await requireAdmin();
-  } catch {
-    return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+    // Creating a transfer moves toward money movement: owner-only (SECURITY.md §2).
+    admin = await requireAdmin(["owner"]);
+  } catch (err) {
+    const status = err instanceof AuthError ? err.status : 401;
+    return NextResponse.json({ error: status === 403 ? "Forbidden." : "Sign in required." }, { status });
   }
   let body: unknown;
   try {

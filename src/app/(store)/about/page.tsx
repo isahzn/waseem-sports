@@ -1,19 +1,16 @@
 import Link from "next/link";
 import { getPage, getShopInfo } from "@/lib/storefront/catalog";
+import { whatsappHref } from "@/lib/storefront/contact-links";
+import { DEFAULT_TRUST_ITEMS } from "@/lib/cms/sections";
 
 export const metadata = {
   title: "About Waseem Sports",
   description:
-    "Waseem Sports is a sports shop in Sri Lanka selling bats, balls, racquets, gym gear and footwear — cash on delivery, delivery island-wide.",
+    "Waseem Sports is a sports shop in Sri Lanka selling bats, balls, racquets, gym gear and footwear — cash on delivery.",
 };
 
-/** Same four cells as the home page (design copy) — no new claims here. */
-const TRUST = [
-  "Free delivery over LKR 10,000",
-  "Cash on delivery",
-  "7-day easy returns",
-  "SMS and email order updates",
-];
+/** Shared with the home page's trust strip: only what the shop can actually honour. */
+const TRUST = DEFAULT_TRUST_ITEMS;
 
 export default async function AboutPage() {
   const [page, info] = await Promise.all([getPage("about"), getShopInfo()]);
@@ -21,13 +18,16 @@ export default async function AboutPage() {
   const phone = info["public.store_phone_1"];
   const phone2 = info["public.store_phone_2"];
   const whatsapp = info["public.store_whatsapp"];
+  // wa.me needs a full international number; a malformed setting renders as
+  // plain text rather than a dead link (see lib/storefront/contact-links.ts).
+  const waHref = whatsappHref(whatsapp ?? "");
   const hasContact = Boolean(address || phone || whatsapp);
 
   return (
     <main>
       <h1 style={{ fontSize: "40px" }}>About Waseem Sports</h1>
       <p className="sold">
-        Sports gear, delivered anywhere in Sri Lanka — cash on delivery.
+        Sports gear for players across Sri Lanka — cash on delivery.
       </p>
 
       {page && page.body.trim() ? (
@@ -91,14 +91,10 @@ export default async function AboutPage() {
                     ))}
                 </p>
               )}
-              {whatsapp && (
+              {waHref && (
                 <p>
                   WhatsApp{" "}
-                  <a
-                    href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`}
-                    target="_blank"
-                    rel="noreferrer noopener"
-                  >
+                  <a href={waHref} target="_blank" rel="noreferrer noopener">
                     {whatsapp}
                   </a>
                 </p>

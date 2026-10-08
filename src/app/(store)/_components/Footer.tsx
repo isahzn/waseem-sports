@@ -1,4 +1,6 @@
+import { Fragment, type ReactNode } from "react";
 import Link from "next/link";
+import { telHref, whatsappHref } from "@/lib/storefront/contact-links";
 
 export type FooterData = {
   sports: { id: string; name: string; slug: string }[];
@@ -14,23 +16,46 @@ export type FooterData = {
  */
 export function Footer({ sports, categories, brands, info }: FooterData) {
   const address = info["public.store_address"];
-  const phone = info["public.store_phone_1"];
-  const phone2 = info["public.store_phone_2"];
+  const phones = [info["public.store_phone_1"], info["public.store_phone_2"]].filter(
+    (value): value is string => Boolean(value),
+  );
   const whatsapp = info["public.store_whatsapp"];
   const email = info["public.store_email"];
   const hours = info["public.store_hours"];
 
-  const facts = [
-    address,
-    [phone, phone2].filter(Boolean).join(" · "),
-    whatsapp ? `WhatsApp ${whatsapp}` : null,
-    hours,
-  ].filter(Boolean) as string[];
+  // Contact facts stay in the design's single centred line. A phone number is a
+  // real `tel:` link and WhatsApp opens a chat, so a shopper on a phone can tap
+  // through; a value that cannot make a working link stays plain text rather
+  // than becoming a dead link (D23: blank stays hidden).
+  const facts: ReactNode[] = [];
+  if (address) facts.push(address);
+  for (const phone of phones) {
+    const href = telHref(phone);
+    facts.push(href ? <a href={href}>{phone}</a> : phone);
+  }
+  if (whatsapp) {
+    const href = whatsappHref(whatsapp);
+    facts.push(
+      href ? (
+        <a href={href} target="_blank" rel="noopener noreferrer">
+          WhatsApp {whatsapp}
+        </a>
+      ) : (
+        `WhatsApp ${whatsapp}`
+      ),
+    );
+  }
+  if (hours) facts.push(hours);
 
   return (
     <footer>
       <p>
-        Waseem Sports{ facts.length > 0 ? ` · ${facts.join(" · ")}` : " · Colombo, Sri Lanka"}
+        Waseem Sports
+        {facts.length > 0
+          ? facts.map((fact, index) => (
+              <Fragment key={index}>{" · "}{fact}</Fragment>
+            ))
+          : " · Colombo, Sri Lanka"}
       </p>
 
       {sports.length > 0 && (

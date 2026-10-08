@@ -12,7 +12,8 @@ import {
   visibilityTone,
 } from "../_components/ui";
 import { ConfirmSubmit } from "../_components/ConfirmSubmit";
-import { archiveSport, restoreSport } from "./actions";
+import { publicImageUrl } from "@/lib/storefront/images";
+import { archiveSport, moveSport, restoreSport } from "./actions";
 
 export const metadata = { title: "Sports — Waseem Sports Admin" };
 
@@ -20,6 +21,40 @@ type SportRow = Database["public"]["Tables"]["sports"]["Row"];
 
 function first(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
+}
+
+/**
+ * One reorder step. Rendered as a plain form so it works before hydration and
+ * keeps the list usable on a phone; disabled at the ends of the list instead of
+ * silently doing nothing.
+ */
+function MoveButton({
+  id,
+  dir,
+  name,
+  disabled,
+}: {
+  id: string;
+  dir: -1 | 1;
+  name: string;
+  disabled: boolean;
+}) {
+  const label = dir === -1 ? `Move ${name} up` : `Move ${name} down`;
+  return (
+    <form action={moveSport} className="inline">
+      <input type="hidden" name="id" value={id} />
+      <input type="hidden" name="dir" value={dir} />
+      <button
+        type="submit"
+        aria-label={label}
+        title={label}
+        disabled={disabled}
+        className="rounded-sm border border-line px-2 py-0.5 text-sm disabled:opacity-40"
+      >
+        {dir === -1 ? "↑" : "↓"}
+      </button>
+    </form>
+  );
 }
 
 export default async function SportsPage({
@@ -52,9 +87,10 @@ export default async function SportsPage({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-display text-3xl font-bold">Sports</h1>
-          <p className="mt-1 text-sm text-muted">
-            Top-level taxonomy. Products link to a sport; archiving hides it from the storefront
-            but keeps existing products intact.
+          <p className="mt-1 max-w-2xl text-sm text-muted">
+            Top-level taxonomy, and what the storefront&rsquo;s &ldquo;Shop by sport&rdquo; tiles and
+            navigation are built from. Products link to a sport; archiving hides it from the
+            storefront but keeps existing products intact.
           </p>
         </div>
         <Link
@@ -113,25 +149,42 @@ export default async function SportsPage({
           <table className="w-full min-w-160 text-left text-sm">
             <thead>
               <tr className="border-b border-line bg-card text-muted">
+                <th className="px-4 py-2 font-semibold">Tile</th>
                 <th className="px-4 py-2 font-semibold">Name</th>
-                <th className="px-4 py-2 font-semibold">Slug</th>
+                <th className="px-4 py-2 font-semibold">Homepage</th>
                 <th className="px-4 py-2 font-semibold">Status</th>
-                <th className="px-4 py-2 font-semibold">Sort</th>
+                <th className="px-4 py-2 font-semibold">Order</th>
                 <th className="px-4 py-2 text-right font-semibold">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((sport) => (
+              {rows.map((sport, index) => (
                 <tr key={sport.id} className="border-b border-line last:border-0">
-                  <td className="px-4 py-2 font-semibold">
-                    {sport.name}
-                    {sport.is_featured && (
-                      <span className="ml-2">
-                        <StatusBadge tone="gold">Featured</StatusBadge>
-                      </span>
+                  <td className="px-4 py-2">
+                    {sport.image_path ? (
+                      /* eslint-disable-next-line @next/next/no-img-element -- pre-made derivative, served directly (see lib/storefront/images.ts) */
+                      <img
+                        src={publicImageUrl(sport.image_path)}
+                        alt=""
+                        width={56}
+                        height={40}
+                        className="rounded-sm border border-line object-cover"
+                      />
+                    ) : (
+                      <span className="text-xs text-muted">No photo</span>
                     )}
                   </td>
-                  <td className="px-4 py-2 text-muted">{sport.slug}</td>
+                  <td className="px-4 py-2 font-semibold">
+                    {sport.name}
+                    <span className="ml-2 text-xs font-normal text-muted">{sport.slug}</span>
+                  </td>
+                  <td className="px-4 py-2">
+                    {sport.is_featured ? (
+                      <StatusBadge tone="gold">On homepage</StatusBadge>
+                    ) : (
+                      <span className="text-xs text-muted">Not promoted</span>
+                    )}
+                  </td>
                   <td className="px-4 py-2">
                     {sport.deleted_at ? (
                       <StatusBadge tone="red">Archived</StatusBadge>
@@ -141,7 +194,18 @@ export default async function SportsPage({
                       </StatusBadge>
                     )}
                   </td>
-                  <td className="px-4 py-2 text-muted">{sport.sort_order}</td>
+                  <td className="px-4 py-2">
+                    <span className="flex items-center gap-1">
+                      <MoveButton id={sport.id} dir={-1} name={sport.name} disabled={index === 0} />
+                      <span className="w-6 text-center text-muted">{sport.sort_order}</span>
+                      <MoveButton
+                        id={sport.id}
+                        dir={1}
+                        name={sport.name}
+                        disabled={index === rows.length - 1}
+                      />
+                    </span>
+                  </td>
                   <td className="px-4 py-2">
                     <span className="flex justify-end gap-2">
                       <Link

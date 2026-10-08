@@ -169,7 +169,10 @@ export async function confirmTransfer(
     return { error: { status: 400, message: "Explicit confirmation is required." } };
   }
   if (!mockEnabled()) {
-    return { error: { status: 503, message: "Sandbox transfers are disabled (MOCK_BANK_ENABLED=false)." } };
+    // Operator-facing wording: no "sandbox"/"mock" language. The message has
+    // to be true on a deployment with no bank provider connected, which is the
+    // only case that reaches it (MOCK_BANK_ENABLED is the switch).
+    return { error: { status: 503, message: "Transfers are switched off on this deployment — no bank provider is connected." } };
   }
   const db = adminDb();
   const { data: found } = await db.from("money_transfers").select("*").eq("id", parsed.data.id).maybeSingle();

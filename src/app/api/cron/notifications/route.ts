@@ -15,8 +15,10 @@ export const dynamic = "force-dynamic";
  * route refuses every caller rather than running unauthenticated. The handler
  * never throws: `processOutbox` returns a summary and this returns it.
  *
- * Accepts the secret as `Authorization: Bearer <secret>`, `x-cron-secret` or
- * `?secret=` so a pg_net SQL job can send it however is easiest.
+ * Accepts the secret as `Authorization: Bearer <secret>` or `x-cron-secret`.
+ * A `?secret=` query parameter is deliberately NOT accepted: URLs (and
+ * therefore secrets in them) end up in proxy/CDN access logs, error reports
+ * and browser history. pg_net can send headers, so nothing needs the query.
  */
 
 function safeEqual(a: string, b: string): boolean {
@@ -31,8 +33,7 @@ function providedSecret(request: NextRequest): string | null {
   if (auth?.toLowerCase().startsWith("bearer ")) return auth.slice(7).trim();
   const header = request.headers.get("x-cron-secret");
   if (header) return header.trim();
-  const query = request.nextUrl.searchParams.get("secret");
-  return query ? query.trim() : null;
+  return null;
 }
 
 function authorized(request: NextRequest): { ok: boolean; status: number; error?: string } {
