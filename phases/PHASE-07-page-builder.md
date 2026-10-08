@@ -93,3 +93,14 @@ Driving the gate with a real session immediately exposed two bugs that no amount
 ### 9. Verification scripts (gitignored, re-runnable)
 
 `.tmp/design/replica-diff.mjs` (computed-style diff vs the mockup + backdrop/font/carousel/sticky-header checks + screenshots), `.tmp/design/walk.mjs` (route walk, `<h1>` assertion, console errors, gate checks, screenshots), `.tmp/design/admin-probe.mjs` (what the admin area computes for body/heading/button type — the check that caught the display-font leak), `.tmp/design/{ssrdom,hydrate}.mjs` (SSR-vs-DOM structure and hydration probes). Run them against a server built from the current tree (`PORT=3100 NODE_ENV=production node server.js`).
+
+### 10. Close-out — 2026-10-08 (fast code-evidence pass, no browser run)
+
+The four deferred items were closed by reading the shipped code (typecheck 0 errors re-run this session):
+
+- **Page creation through the UI — BUILT.** `src/app/admin/(catalog)/pages/page.tsx` renders the "New page" form (title + slug) wired to `createPage` in `actions.ts` (zod title/slug, slug-clash check, insert as `draft`, audit `page.create`, redirect to the new builder). No live-browser create was run this session; the action path is the same `requireAdmin + adminDb + writeAudit` path the 33/33 harness already exercised for sections.
+- **Unpublished invisible — by construction.** `getPublishedSections()` (`src/lib/cms/pages.ts`) filters `pages.status='published'` + `page_sections.is_visible=true` and drops any row that fails `parseSectionContent`; `getLandingSections()` falls back to the design default when nothing is published, so a draft can never blank or leak to `/`.
+- **XSS — safe by construction.** `SectionList.tsx` renders every CMS string via JSX text (`{c.title}`, `{c.body}`, etc., `whiteSpace:pre-line` for rich text) — React escapes it. Repo-wide grep for `dangerouslySetInnerHTML` finds one hit only: JSON-LD in `(store)/product/[slug]/page.tsx:43` with `JSON.stringify(...).replace(/</g, "\\u003c")`. No CMS field uses raw HTML; section schemas (`sections.ts`) also cap lengths and restrict `href`/gradient/image-path shapes.
+- **Hero weight — measured.** `public/assets/bg.mp4` = 3.1 MB (byte-identical to `design/Background.mp4`), `public/assets/` total 4.3 MB. The layer is decorative (`aria-hidden`, `pointer-events:none`) and hidden under `prefers-reduced-motion` (`design.css:121-122`, `(store)/layout.tsx`, `Hero.tsx` skips auto-advance when reduced motion is set). No autoplay change made; mobile-data cost is the 3.1 MB file on first load (browser-cached after).
+
+Acceptance read: owner can create a page (form exists), reorder homepage (up/down proven 33/33), unpublished stays hidden (query-gated), injection renders as text (JSX-escaped), no per-page TS (all DB-driven). Remaining owner-side step is the eyes-on click (create "Special Offers", publish, check `/pages/...`), left for the admin walkthrough — no code gap found.
