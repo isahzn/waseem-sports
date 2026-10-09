@@ -538,21 +538,21 @@ const HOME_SECTIONS = [
           title: "Game on",
           text: "Footballs, basketballs and racquets, ready to play.",
           background: "linear-gradient(120deg,#062418,#0f4a33)",
-          href: "/shop",
+          href: "/sport/football",
           image_path: photoPath(6),
         },
         {
           title: "New arrivals",
           text: "Skating shoes and swim gear just landed.",
           background: "linear-gradient(120deg,#2b2109,#7a5f1e)",
-          href: "/shop",
+          href: "/sport/skating",
           image_path: photoPath(2),
         },
         {
           title: "Train at home",
           text: "Dumbbells, gym gloves and more, delivered fast.",
           background: "linear-gradient(120deg,#0a120e,#0b3d2a)",
-          href: "/shop",
+          href: "/sport/fitness",
           image_path: photoPath(7),
         },
       ],
@@ -566,13 +566,7 @@ const HOME_SECTIONS = [
   },
   {
     type: "product_grid",
-    content: { title: "Picked for you", source: "newest", limit: 12, link_label: "See all", link_href: "/shop", product_ids: [] },
-  },
-  {
-    type: "promo_strip",
-    // Only promises the shop can actually honour: delivery rules are unentered
-    // (D5), returns are unresolved (D7) and no SMS/email provider exists (D4).
-    content: { items: ["Cash on delivery"] },
+    content: { title: "New arrivals", source: "newest", limit: 12, link_label: "See all", link_href: "/shop", product_ids: [] },
   },
 ];
 

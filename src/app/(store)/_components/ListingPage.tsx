@@ -62,8 +62,9 @@ function pageHref(basePath: string, raw: Record<string, string>, page: number): 
  * the product `.grid` and chip pagination.
  *
  * `scope` carries the page's fixed filters (sport/category/brand/q).
- * `activeCategorySlug` drives the chip state: `null` marks "All", a slug marks
- * that category, and leaving it undefined marks nothing (sport/brand/search).
+ * Fixes §2.2: one concept ("Sport"), one URL (/sport/[slug]). The tab bar lists
+ * sports only; `activeSportSlug` marks the current sport, `null` marks "All".
+ * `activeCategorySlug` is kept for back-compat and treated as a sport slug.
  */
 export async function ListingPage({
   title,
@@ -72,6 +73,7 @@ export async function ListingPage({
   scope,
   searchParams,
   activeCategorySlug,
+  activeSportSlug,
   topContent,
 }: {
   title: string;
@@ -80,6 +82,7 @@ export async function ListingPage({
   scope: Partial<ListFilters>;
   searchParams: ListingSearch;
   activeCategorySlug?: string | null;
+  activeSportSlug?: string | null;
   /** Optional block rendered under the heading — used by `/search` for taxonomy hits. */
   topContent?: React.ReactNode;
 }) {
@@ -115,19 +118,23 @@ export async function ListingPage({
 
   return (
     <main>
-      <div className="cats">
-        <Link className={`chip${activeCategorySlug === null ? " on" : ""}`} href="/shop">
+      <div className="cats" role="tablist" aria-label="Shop by sport">
+        <Link
+          className={`chip${activeCategorySlug === null || activeSportSlug === null ? " on" : ""}`}
+          href="/shop"
+          aria-selected={activeCategorySlug === null || activeSportSlug === null}
+          role="tab"
+        >
           All
         </Link>
-        {nav.categories.slice(0, 11).map((c) => (
-          <Link
-            key={c.id}
-            className={`chip${activeCategorySlug === c.slug ? " on" : ""}`}
-            href={`/category/${c.slug}`}
-          >
-            {c.name}
-          </Link>
-        ))}
+        {nav.sports.slice(0, 11).map((s) => {
+          const on = activeSportSlug === s.slug || activeCategorySlug === s.slug;
+          return (
+            <Link key={s.id} className={`chip${on ? " on" : ""}`} href={`/sport/${s.slug}`} role="tab" aria-selected={on}>
+              {s.name}
+            </Link>
+          );
+        })}
       </div>
 
       <div className="sec">
@@ -140,8 +147,10 @@ export async function ListingPage({
 
       {topContent}
 
-      <ListingControls base={scope} current={{ ...raw, ...(scope.q ? { q: scope.q } : {}) }} />
+      <div className="listing-wrap">
+        <ListingControls base={scope} current={{ ...raw, ...(scope.q ? { q: scope.q } : {}) }} />
 
+        <div className="listing-results">
       {cards.length === 0 ? (
         <div className="box" role="status">
           <h2>{narrowed ? "Nothing matches" : "Nothing here yet"}</h2>
@@ -182,6 +191,8 @@ export async function ListingPage({
           )}
         </nav>
       )}
+        </div>
+      </div>
     </main>
   );
 }

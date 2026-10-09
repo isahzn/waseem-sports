@@ -49,7 +49,7 @@ function MoveButton({
         aria-label={label}
         title={label}
         disabled={disabled}
-        className="rounded-sm border border-line px-2 py-0.5 text-sm disabled:opacity-40"
+        className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-sm border border-line px-3 py-2 text-sm disabled:opacity-40"
       >
         {dir === -1 ? "↑" : "↓"}
       </button>

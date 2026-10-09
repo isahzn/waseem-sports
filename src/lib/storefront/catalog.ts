@@ -77,7 +77,23 @@ export async function getShopBySport(limit = 12): Promise<SportTile[]> {
     .order("name")
     .limit(Math.min(Math.max(Math.trunc(limit) || 12, 1), 12));
   if (error) return [];
-  return data ?? [];
+  const sports = data ?? [];
+  if (sports.length === 0) return [];
+  // Fixes §2.1: hide sports with zero published products (e.g. Cricket,
+  // Tennis right now). An empty sport keeps its page (honest empty state
+  // there redirects — see sport/[slug]), but loses its homepage tile.
+  const { data: counts } = await db
+    .from("products")
+    .select("sport_id")
+    .eq("status", "published")
+    .is("deleted_at", null)
+    .in(
+      "sport_id",
+      sports.map((s) => s.id),
+    )
+    .limit(500);
+  const withStock = new Set((counts ?? []).map((r) => r.sport_id));
+  return sports.filter((s) => withStock.has(s.id));
 }
 
 type Db = Awaited<ReturnType<typeof createClient>>;
@@ -306,7 +322,14 @@ async function searchProductIds(db: Db, q: string): Promise<string[] | null> {
   return [...result].slice(0, SEARCH_ID_LIMIT);
 }
 
-export type TaxonomyHit = { id: string; name: string; slug: string; kind: "sport" | "category" };
+export type TaxonomyHit = {
+  id: string;
+  name: string;
+  slug: string;
+  kind: "sport" | "category";
+  /** Category hits carry their linked sport's slug, so callers link the canonical /sport/* URL directly. */
+  sportSlug: string | null;
+};
 
 /**
  * Sports and categories whose name matches the phrase, so the search page can
@@ -328,10 +351,25 @@ export async function searchTaxonomy(q: string): Promise<TaxonomyHit[]> {
     const like = likeTerm(term);
     const [sports, cats] = await Promise.all([
       db.from("sports").select("id,name,slug").eq("is_visible", true).is("deleted_at", null).ilike("name", like).order("sort_order").limit(8),
-      db.from("categories").select("id,name,slug").eq("is_visible", true).is("deleted_at", null).ilike("name", like).order("name").limit(8),
+      db
+        .from("categories")
+        .select("id,name,slug,sport_id,sports:sport_id(slug)")
+        .eq("is_visible", true)
+        .is("deleted_at", null)
+        .ilike("name", like)
+        .order("name")
+        .limit(8),
     ]);
-    for (const s of sports.data ?? []) hits.push({ ...s, kind: "sport" });
-    for (const c of cats.data ?? []) hits.push({ ...c, kind: "category" });
+    for (const s of sports.data ?? []) hits.push({ ...s, kind: "sport", sportSlug: null });
+    for (const c of (cats.data ?? []) as {
+      id: string;
+      name: string;
+      slug: string;
+      sports: { slug: string } | { slug: string }[] | null;
+    }[]) {
+      const linked = Array.isArray(c.sports) ? (c.sports[0] ?? null) : c.sports;
+      hits.push({ id: c.id, name: c.name, slug: c.slug, kind: "category", sportSlug: linked?.slug ?? null });
+    }
   }
   // De-duplicate (a word can match the same row on two passes).
   const seen = new Set<string>();

@@ -1,5 +1,7 @@
+"use client";
+
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 
 /** Small status pill. Tones map to the brand palette (no new colors). */
 export function StatusBadge({
@@ -62,7 +64,12 @@ export function EmptyState({
   );
 }
 
-/** GET search/filter bar — plain form, no client JS needed. */
+/**
+ * GET search/filter bar (Fixes §3.3): instant with debounce — typing narrows
+ * the list ~500ms after the last keystroke, and changing a filter applies
+ * immediately. Progressive enhancement: without JS the Apply button submits
+ * the same GET form, so nothing breaks.
+ */
 export function SearchBar({
   q,
   extra,
@@ -70,8 +77,26 @@ export function SearchBar({
   q?: string;
   extra?: ReactNode;
 }) {
+  const formRef = useRef<HTMLFormElement>(null);
+  const timer = useRef<number | null>(null);
+
+  const scheduleSubmit = (delay: number) => {
+    if (timer.current) window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => {
+      formRef.current?.requestSubmit();
+    }, delay);
+  };
+
   return (
-    <form method="get" className="flex flex-wrap items-end gap-3">
+    <form
+      ref={formRef}
+      method="get"
+      className="flex flex-wrap items-end gap-3"
+      onChange={(e) => {
+        // Selects apply instantly; the search box debounces (see onChange below).
+        if ((e.target as HTMLElement).tagName === "SELECT") scheduleSubmit(0);
+      }}
+    >
       <label className="flex min-w-52 flex-1 flex-col gap-1 text-sm">
         <span className="text-muted">Search</span>
         <input
@@ -80,6 +105,8 @@ export function SearchBar({
           defaultValue={q ?? ""}
           placeholder="Name or slug…"
           maxLength={100}
+          autoComplete="off"
+          onChange={() => scheduleSubmit(500)}
           className="rounded-sm border border-line bg-surface px-3 py-2"
         />
       </label>

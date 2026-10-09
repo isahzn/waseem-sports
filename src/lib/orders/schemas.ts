@@ -103,6 +103,8 @@ export const orderStatusFilters = [
 export const adminOrderFilters = z.object({
   q: z.string().trim().max(100).optional().catch(undefined),
   status: z.enum(orderStatusFilters).catch("all"),
+  /** Fixes §3.6: "Needs action" view — new orders plus payments waiting. */
+  need: z.enum(["action"]).optional().catch(undefined),
   from: z
     .string()
     .trim()

@@ -66,21 +66,21 @@ export function defaultLandingSections(): RenderedSection[] {
             title: "Game on",
             text: "Footballs, basketballs and racquets, ready to play.",
             background: "linear-gradient(120deg,#062418,#0f4a33)",
-            href: "/shop",
+            href: "/sport/football",
             image_path: "",
           },
           {
             title: "New arrivals",
             text: "Skating shoes and swim gear just landed.",
             background: "linear-gradient(120deg,#2b2109,#7a5f1e)",
-            href: "/shop",
+            href: "/sport/skating",
             image_path: "",
           },
           {
             title: "Train at home",
             text: "Dumbbells, gym gloves and more, delivered fast.",
             background: "linear-gradient(120deg,#0a120e,#0b3d2a)",
-            href: "/shop",
+            href: "/sport/fitness",
             image_path: "",
           },
         ],
@@ -106,9 +106,8 @@ export function defaultLandingSections(): RenderedSection[] {
       id: "default-picked",
       type: "product_grid",
       sort_order: 4,
-      content: { title: "Picked for you", source: "newest", limit: 12, link_label: "See all", link_href: "/shop", product_ids: [] },
+      content: { title: "New arrivals", source: "newest", limit: 12, link_label: "See all", link_href: "/shop", product_ids: [] },
     },
-    { id: "default-trust", type: "promo_strip", sort_order: 5, content: defaultContent("promo_strip") },
   ];
 }
 

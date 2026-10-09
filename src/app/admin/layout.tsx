@@ -5,47 +5,13 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdminRole } from "@/lib/auth/roles";
 import { clearAdminSession, hasAdminSession } from "@/lib/auth/passcode";
 import { getNewOrderCount } from "@/lib/orders/queries";
+import { AdminNav } from "./(catalog)/_components/AdminNav";
 
 /**
  * The admin area's own shell — deliberately not the storefront: a grouped
  * sidebar, a dense working surface and its own header. Everything under
  * /admin is behind the login gate (and every action re-checks the role).
  */
-const NAV_GROUPS: { label: string; links: { href: string; label: string; badge?: "new-orders" }[] }[] = [
-  {
-    label: "Overview",
-    links: [
-      { href: "/admin", label: "Dashboard" },
-      { href: "/admin/orders", label: "Orders", badge: "new-orders" },
-      { href: "/admin/notifications", label: "Notifications" },
-    ],
-  },
-  {
-    label: "Catalog",
-    links: [
-      { href: "/admin/products", label: "Products" },
-      { href: "/admin/inventory", label: "Inventory" },
-      { href: "/admin/sports", label: "Sports" },
-      { href: "/admin/categories", label: "Categories" },
-      { href: "/admin/brands", label: "Brands" },
-      { href: "/admin/attributes", label: "Attributes" },
-    ],
-  },
-  {
-    label: "Content",
-    links: [{ href: "/admin/pages", label: "Pages & landing" }],
-  },
-  {
-    label: "Setup",
-    links: [
-      { href: "/admin/transfers", label: "Transfers" },
-      { href: "/admin/shipping", label: "Shipping" },
-      { href: "/admin/settings/image-search", label: "Image search" },
-      { href: "/admin/settings/whatsapp", label: "Notifications & WhatsApp" },
-    ],
-  },
-];
-
 async function logout() {
   "use server";
   await clearAdminSession();
@@ -109,45 +75,20 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="min-h-screen lg:flex">
-      <aside className="border-b border-line bg-pine-950 lg:w-64 lg:shrink-0 lg:border-r lg:border-b-0">
+      <aside className="border-b border-line bg-pine-950 lg:w-64 lg:shrink-0 lg:border-r lg:border-b-0 print:hidden">
         <div className="px-4 py-4">
           <Link href="/admin" className="font-display text-lg font-bold">
             Waseem <span className="text-gold-400">Sports</span>
           </Link>
           <p className="text-xs text-muted">Admin · {role}</p>
         </div>
-        <nav aria-label="Admin sections" className="flex flex-wrap gap-4 px-4 pb-4 lg:flex-col lg:gap-5 lg:px-3">
-          {NAV_GROUPS.map((group) => (
-            <div key={group.label} className="flex flex-wrap gap-1 lg:flex-col">
-              <p className="w-full px-2 text-[11px] font-semibold uppercase tracking-wide text-muted">{group.label}</p>
-              {group.links.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="rounded-sm px-2 py-1.5 text-sm text-ink hover:bg-card"
-                >
-                  {link.label}
-                  {link.badge === "new-orders" && newOrderCount > 0 && (
-                    <span
-                      aria-label={`${newOrderCount} new order${newOrderCount === 1 ? "" : "s"}`}
-                      className="ml-2 rounded-sm bg-gold-600 px-1.5 py-0.5 text-xs font-semibold text-bronze-ink"
-                    >
-                      {newOrderCount}
-                    </span>
-                  )}
-                </Link>
-              ))}
-            </div>
-          ))}
-        </nav>
+        <AdminNav newOrderCount={newOrderCount} />
       </aside>
 
       <div className="min-w-0 flex-1">
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-pine-950 px-4 py-3">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-pine-950 px-4 py-3 print:hidden">
           <p className="text-sm text-muted">
-            {passcodeSession
-              ? "Signed in with the admin password"
-              : `Signed in${user?.email ? ` as ${user.email}` : ""}`}
+            {passcodeSession ? "Owner" : `Signed in${user?.email ? ` as ${user.email}` : ""}`}
             <Link href="/" className="ml-3 underline">
               View store ↗
             </Link>

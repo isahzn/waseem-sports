@@ -68,7 +68,7 @@ export function VariantPicker({ product }: { product: ProductDetail }) {
         {hero ? (
           <div className="img big" style={{ borderRadius: 4 }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={hero.src} alt={current?.alt_text || product.name} fetchPriority="high" />
+            <img src={hero.src} alt={current?.alt_text || product.name} fetchPriority="high" width={hero.width} height={hero.height} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
           </div>
         ) : (
           <div className="img big" style={{ borderRadius: 4 }}>
@@ -97,6 +97,8 @@ export function VariantPicker({ product }: { product: ProductDetail }) {
                       alt=""
                       loading="lazy"
                       decoding="async"
+                      width={72}
+                      height={72}
                     />
                   </span>
                 </button>
@@ -172,7 +174,7 @@ export function VariantPicker({ product }: { product: ProductDetail }) {
           </dl>
         )}
 
-        <div style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <div className="buy-bar" style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <span className="q" style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
             <button
               type="button"

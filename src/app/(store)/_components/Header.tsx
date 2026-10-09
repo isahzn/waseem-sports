@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useHydrated } from "@/lib/storefront/use-hydrated";
 import { useCart } from "./CartProvider";
+import { SearchBox } from "./SearchBox";
 
 /**
  * Storefront header, matching the canonical design: gold announcement bar,
@@ -19,12 +20,15 @@ import { useCart } from "./CartProvider";
  */
 export function Header({ announcement }: { announcement: string | null }) {
   const { preview, setOpen } = useCart();
+  const hydrated = useHydrated();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const router = useRouter();
-  const [q, setQ] = useState(searchParams.get("q") ?? "");
 
-  const count = preview?.count ?? 0;
+  // The count comes from the `refreshCart` server action, which can resolve
+  // while this header is still hydrating; rendering it before hydration would
+  // put a number the server never sent into the badge (React #418). Until then
+  // the badge shows the server's value, 0.
+  const count = hydrated ? (preview?.count ?? 0) : 0;
   const isOn = (href: string) => (pathname === href ? "on" : "");
   const notice = announcement?.trim() ?? "";
 
@@ -34,7 +38,7 @@ export function Header({ announcement }: { announcement: string | null }) {
   const links = [
     { href: "/", label: "Home" },
     { href: "/shop", label: "Shop" },
-    { href: "/track", label: "Account" },
+    { href: "/account", label: "Account" },
   ];
 
   return (
@@ -46,29 +50,7 @@ export function Header({ announcement }: { announcement: string | null }) {
             WASEEM <b>SPORTS</b>
           </Link>
 
-          <form
-            className="search"
-            role="search"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const term = q.trim();
-              router.push(term ? `/search?q=${encodeURIComponent(term)}` : "/shop");
-            }}
-          >
-            <label htmlFor="site-search" className="sr-only">
-              Search products
-            </label>
-            <input
-              id="site-search"
-              type="search"
-              name="q"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search bats, boots, jerseys…"
-              maxLength={100}
-            />
-            <button type="submit">Search</button>
-          </form>
+          <SearchBox initialQ={searchParams.get("q") ?? ""} />
 
           <nav aria-label="Primary">
             {links.map((l) => (

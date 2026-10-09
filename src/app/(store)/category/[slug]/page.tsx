@@ -1,6 +1,6 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { ListingPage, type ListingSearch } from "../../_components/ListingPage";
+import type { ListingSearch } from "../../_components/ListingPage";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -21,24 +21,37 @@ export default async function CategoryPage({
   searchParams: Promise<ListingSearch>;
 }) {
   const { slug } = await params;
+  await searchParams;
   const db = await createClient();
   const { data: cat } = await db
     .from("categories")
-    .select("id,name,description")
+    .select("id,name,sport_id")
     .eq("slug", slug)
     .eq("is_visible", true)
     .is("deleted_at", null)
     .single();
   if (!cat) notFound();
-
-  return (
-    <ListingPage
-      title={cat.name}
-      subtitle={cat.description ?? undefined}
-      basePath={`/category/${slug}`}
-      scope={{ category_id: cat.id }}
-      searchParams={await searchParams}
-      activeCategorySlug={slug}
-    />
-  );
+  // Fixes §2.2: sports and categories are one concept ("Sport") with one URL
+  // scheme (/sport/[slug]). Old /category/ URLs redirect to the linked sport,
+  // falling back to the slug match and then to /shop. Permanent (308) so
+  // crawlers and bookmarks consolidate on the canonical sport URL.
+  if (cat.sport_id) {
+    const { data: sport } = await db
+      .from("sports")
+      .select("slug")
+      .eq("id", cat.sport_id)
+      .eq("is_visible", true)
+      .is("deleted_at", null)
+      .single();
+    if (sport) redirect(`/sport/${sport.slug}`);
+  }
+  const { data: bySlug } = await db
+    .from("sports")
+    .select("slug")
+    .eq("slug", slug)
+    .eq("is_visible", true)
+    .is("deleted_at", null)
+    .single();
+  if (bySlug) redirect(`/sport/${bySlug.slug}`);
+  redirect("/shop");
 }

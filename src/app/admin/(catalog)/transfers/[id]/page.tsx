@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { requireAdminOrRedirect } from "@/lib/auth/requireAdmin";
 import { getTransfer, transferTimeline } from "@/lib/transfers/service";
 import { FormError, StatusBadge } from "../../_components/ui";
-import { cancelTransferAction, confirmTransferAction } from "../actions";
+import { TransferConfirm } from "../_components/TransferConfirm";
 
 export const metadata = { title: "Transfer — Waseem Sports Admin" };
 
@@ -65,15 +65,16 @@ export default async function TransferDetail({
           </p>
         )}
         {needsApproval ? (
-          <form action={confirmTransferAction} className="mt-4 flex flex-wrap items-center gap-3">
-            <input type="hidden" name="id" value={transfer.id} />
-            <input type="hidden" name="idempotency_key" value={transfer.idempotency_key} />
-            <input type="hidden" name="confirm" value="true" />
-            <button type="submit" className="rounded-sm bg-gold-600 px-5 py-2.5 text-sm font-bold text-bronze-ink">
-              CONFIRM TRANSFER
-            </button>
-            <span className="text-xs text-muted">Nothing moves until you press this. Pressing it twice still creates one transfer.</span>
-          </form>
+          <div className="mt-4 flex flex-col gap-3">
+            <TransferConfirm
+              id={transfer.id}
+              idempotencyKey={transfer.idempotency_key}
+              amountLabel={`${transfer.currency} ${Number(transfer.total).toLocaleString()}`}
+              recipient={`${transfer.recipient_name} (${transfer.recipient_bank})`}
+              kind="approve"
+            />
+            <span className="text-xs text-muted">Nothing moves until you confirm twice. Confirming twice still creates one transfer.</span>
+          </div>
         ) : (
           <p className="mt-4 text-sm text-muted">
             {transfer.status === "completed" && "Completed — the provider reported success. The provider transaction ID above is your reference."}
@@ -84,10 +85,15 @@ export default async function TransferDetail({
           </p>
         )}
         {(transfer.status === "pending_approval" || transfer.status === "draft" || transfer.status === "approved" || transfer.status === "processing") && (
-          <form action={cancelTransferAction} className="mt-3">
-            <input type="hidden" name="id" value={transfer.id} />
-            <button type="submit" className="rounded-sm border border-line px-3 py-1.5 text-sm">Cancel transfer</button>
-          </form>
+          <div className="mt-3">
+            <TransferConfirm
+              id={transfer.id}
+              idempotencyKey={transfer.idempotency_key}
+              amountLabel={`${transfer.currency} ${Number(transfer.total).toLocaleString()}`}
+              recipient={`${transfer.recipient_name} (${transfer.recipient_bank})`}
+              kind="reject"
+            />
+          </div>
         )}
       </section>
 

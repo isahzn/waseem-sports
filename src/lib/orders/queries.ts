@@ -120,7 +120,15 @@ export async function listOrders(
   const from = (page - 1) * ORDERS_PER_PAGE;
 
   let query = db.from("orders").select(ORDER_COLUMNS, { count: "exact" });
-  if (filters.status && filters.status !== "all") query = query.eq("status", filters.status);
+  if (filters.need === "action") {
+    // Fixes §3.6: one "Needs action" view — new orders plus money waiting
+    // (pending payment on a live order). Plain comma/quote stripping as above.
+    query = query.or(
+      "status.eq.new,and(payment_status.eq.pending,status.not.in.(cancelled,delivered,refunded))",
+    );
+  } else if (filters.status && filters.status !== "all") {
+    query = query.eq("status", filters.status);
+  }
   if (filters.from) query = query.gte("placed_at", `${filters.from}T00:00:00.000Z`);
   if (filters.to) query = query.lte("placed_at", `${filters.to}T23:59:59.999Z`);
   if (filters.q) {
@@ -193,6 +201,7 @@ export async function getNewOrderCount(): Promise<number> {
 
 export type DashboardData = {
   newOrders: number;
+  pendingTransfers: number;
   ordersToday: number;
   revenue30d: number;
   orders30d: number;
@@ -212,8 +221,9 @@ export async function getDashboardData(): Promise<DashboardData> {
   const since30 = new Date(now - 30 * 24 * 3600 * 1000).toISOString();
   const startOfToday = new Date(new Date(now).setHours(0, 0, 0, 0)).toISOString();
 
-  const [newRes, recentRes, lowRes] = await Promise.all([
+  const [newRes, transfersRes, recentRes, lowRes] = await Promise.all([
     db.from("orders").select("id", { count: "exact", head: true }).eq("status", "new"),
+    db.from("money_transfers").select("id", { count: "exact", head: true }).eq("status", "pending_approval"),
     db
       .from("orders")
       .select("id,total,status,placed_at")
@@ -271,6 +281,7 @@ export async function getDashboardData(): Promise<DashboardData> {
 
   return {
     newOrders: newRes.count ?? 0,
+    pendingTransfers: transfersRes.count ?? 0,
     ordersToday: recent.filter((o) => o.placed_at >= startOfToday).length,
     revenue30d: revenue.reduce((sum, o) => sum + Number(o.total), 0),
     orders30d: revenue.length,

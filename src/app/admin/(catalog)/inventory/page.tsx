@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { adminDb, requireAdminOrRedirect } from "@/lib/auth/requireAdmin";
 import { StatusBadge } from "../_components/ui";
 import { AdjustForm, type VariantOption } from "./AdjustForm";
+import { InlineAdjust } from "./InlineAdjust";
 
 export const metadata = { title: "Inventory — Waseem Sports Admin" };
 
@@ -69,7 +71,8 @@ export default async function InventoryPage({
       <div>
         <h1 className="font-display text-3xl font-bold">Inventory</h1>
         <p className="mt-1 text-sm text-muted">
-          Live stock per variant. Available = on hand − reserved.{" "}
+          Live stock per variant. Available = on hand − reserved. <b>Reserved</b> means
+          promised to open orders — it frees up if the order is cancelled.{" "}
           {lowCount > 0 ? (
             <span className="font-semibold text-gold-400">{lowCount} variant{lowCount === 1 ? "" : "s"} at or below threshold.</span>
           ) : (
@@ -114,6 +117,8 @@ export default async function InventoryPage({
                 <th className="px-4 py-2 font-semibold">Reserved</th>
                 <th className="px-4 py-2 font-semibold">Available</th>
                 <th className="px-4 py-2 font-semibold">State</th>
+                <th className="px-4 py-2 font-semibold">Quick adjust</th>
+                <th className="px-4 py-2 font-semibold">History</th>
               </tr>
             </thead>
             <tbody>
@@ -128,12 +133,27 @@ export default async function InventoryPage({
                     {!r.tracked ? (
                       <StatusBadge tone="muted">Untracked</StatusBadge>
                     ) : r.available <= 0 ? (
-                      <StatusBadge tone="red">Out of stock</StatusBadge>
+                      <StatusBadge tone="red">Out</StatusBadge>
                     ) : r.available <= r.threshold ? (
                       <StatusBadge tone="gold">Low</StatusBadge>
                     ) : (
                       <StatusBadge tone="green">OK</StatusBadge>
                     )}
+                  </td>
+                  <td className="px-4 py-2">
+                    {r.tracked ? (
+                      <InlineAdjust variantId={r.variant_id} onHand={r.on_hand} />
+                    ) : (
+                      <span className="text-xs text-muted">Not tracked</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2">
+                    <Link
+                      href={`/admin/inventory/history?variant=${r.variant_id}`}
+                      className="text-sm underline underline-offset-2"
+                    >
+                      History
+                    </Link>
                   </td>
                 </tr>
               ))}

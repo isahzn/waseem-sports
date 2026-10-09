@@ -3,6 +3,7 @@ import { cardImage } from "@/lib/storefront/images";
 import { formatLKR } from "@/lib/storefront/money";
 import type { ProductCard as Card } from "@/lib/storefront/catalog";
 import { AddToCartButton } from "./AddToCartButton";
+import { CompareButton } from "./CompareButton";
 import { SaveButton } from "./SaveButton";
 
 /** Design fallback mark (.mk): a serif monogram when a product has no photo. */
@@ -66,6 +67,7 @@ export function ProductCard({ product }: { product: Card }) {
       </Link>
       <AddToCartButton variantId={addable ? product.default_variant_id : null} />
       <SaveButton productId={product.id} productName={product.name} />
+      <CompareButton productId={product.id} productName={product.name} />
     </article>
   );
 }

@@ -297,8 +297,16 @@ button {
   display: flex;
   gap: 10px;
   overflow-x: auto;
-  padding: 14px 0;
+  padding: 14px 2px;
   scrollbar-width: none;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+}
+.ws .cats::-webkit-scrollbar {
+  display: none;
+}
+.ws .cats .chip {
+  scroll-snap-align: start;
 }
 .ws .chip {
   flex: none;
@@ -643,12 +651,125 @@ button {
   margin: 1em 0;
 }
 
+/* Fixes §2.2: listing layout — slim sidebar on desktop, bottom sheet on mobile. */
+.ws .listing-wrap {
+  display: grid;
+  grid-template-columns: 230px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.ws .listing-results {
+  min-width: 0;
+}
+.ws .active-filters {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.ws .filters {
+  padding: 12px;
+}
+.ws .filters-toggle {
+  cursor: pointer;
+  font-weight: 700;
+  padding: 6px 4px;
+  list-style: none;
+}
+.ws .filters-toggle::-webkit-details-marker {
+  display: none;
+}
+.ws .filters-toggle::before {
+  content: "▸ ";
+}
+.ws .filters[open] .filters-toggle::before {
+  content: "▾ ";
+}
+.ws .filters-form {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 8px;
+}
+.ws .filters-form label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+}
+.ws .filters-actions {
+  margin-top: 8px;
+}
+/* Fixes §2.4: no horizontal scroll anywhere (360/390/412px tested widths). */
+html,
+body {
+  overflow-x: clip;
+}
+.ws img {
+  max-width: 100%;
+}
+.ws main {
+  overflow-x: clip;
+}
+/* Fixes §2.4: 44px minimum touch targets for phone use with one hand. */
+.ws nav a,
+.ws nav button {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+.ws .chip {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+.ws .btn,
+.ws .add {
+  min-height: 44px;
+}
+.ws .search button {
+  min-height: 44px;
+}
 @media (max-width: 700px) {
   .ws .two {
     grid-template-columns: 1fr;
   }
   .ws .slide {
     padding: 24px 20px;
+  }
+  /* Phone stepper keeps its desktop replica size, but gets a 44px hit area. */
+  .ws .q button {
+    width: 44px;
+    height: 44px;
+  }
+  /* Fixes §2.4: sticky Add-to-cart bar on product pages (mobile only). */
+  .ws .buy-bar {
+    position: sticky;
+    bottom: 0;
+    z-index: 15;
+    background: var(--bg);
+    padding: 10px 0 calc(10px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--ln);
+  }
+  .ws .listing-wrap {
+    grid-template-columns: 1fr;
+  }
+  /* Bottom sheet: closed = single button row; open = fixed sheet. */
+  .ws .filters:not([open]) {
+    padding: 4px 12px;
+  }
+  .ws .filters[open] {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 20;
+    max-height: 82dvh;
+    overflow-y: auto;
+    border-radius: 12px 12px 0 0;
+    border-bottom: 0;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.35);
   }
 }
 @media (prefers-reduced-motion: reduce) {

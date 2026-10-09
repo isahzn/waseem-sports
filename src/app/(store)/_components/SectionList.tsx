@@ -39,6 +39,15 @@ async function SportTilesSection({ content }: { content: Record<string, unknown>
   if (!c) return null;
   const tiles = await getShopBySport(c.limit);
   if (tiles.length === 0) return null;
+  // Fixes §2.1: under each sport show its top 10 products + a "See all"
+  // button into that sport's page. Tiles with no products never arrive here
+  // (getShopBySport filters them), so Cricket/Tennis stay hidden until stocked.
+  const spotlights = await Promise.all(
+    tiles.map(async (tile) => {
+      const { cards } = await listProducts({ sport_id: tile.id, sort: "newest", page: 1 });
+      return { tile, cards: cards.slice(0, 10) };
+    }),
+  );
   return (
     <>
       <div className="sec">
@@ -66,6 +75,23 @@ async function SportTilesSection({ content }: { content: Record<string, unknown>
           </Link>
         ))}
       </div>
+      {spotlights.map(({ tile, cards }) =>
+        cards.length === 0 ? null : (
+          <section key={tile.id} aria-label={`${tile.name} products`}>
+            <div className="sec">
+              <h2>{tile.name}</h2>
+              <Link className="btn out" href={`/sport/${tile.slug}`}>
+                See all products
+              </Link>
+            </div>
+            <div className="grid">
+              {cards.map((p) => (
+                <ProductCard key={p.id} product={p} />
+              ))}
+            </div>
+          </section>
+        ),
+      )}
     </>
   );
 }
@@ -82,7 +108,7 @@ async function CategoryTilesSection({ content }: { content: Record<string, unkno
           <h2>{c.title}</h2>
         </div>
       )}
-      <div className="cats">
+      <div className="cats" role="tablist" aria-label="Shop by category">
         <Link className="chip" href="/shop">
           All
         </Link>

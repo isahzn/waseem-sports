@@ -63,14 +63,32 @@ export default async function OrdersPage({
     from: first(sp.from),
     to: first(sp.to),
     page: first(sp.page),
+    need: first(sp.need),
   });
 
-  const [{ orders, total, page, perPage }, newCount] = await Promise.all([
+  const [{ orders, total, page, perPage }, newCount, needCount] = await Promise.all([
     listOrders(filters),
     getNewOrderCount(),
+    listOrders({ ...filters, need: "action", page: 1 }).then((r) => r.total),
   ]);
 
-  const filtered = Boolean(filters.q || (filters.status && filters.status !== "all") || filters.from || filters.to);
+  const filtered = Boolean(
+    filters.q ||
+      (filters.status && filters.status !== "all") ||
+      filters.from ||
+      filters.to ||
+      filters.need === "action",
+  );
+  const exportHref = (() => {
+    const sp = new URLSearchParams();
+    if (filters.q) sp.set("q", filters.q);
+    if (filters.status && filters.status !== "all") sp.set("status", filters.status);
+    if (filters.from) sp.set("from", filters.from);
+    if (filters.to) sp.set("to", filters.to);
+    if (filters.need === "action") sp.set("need", "action");
+    const s = sp.toString();
+    return `/api/admin/orders/export${s ? `?${s}` : ""}`;
+  })();
 
   return (
     <main>
@@ -95,6 +113,33 @@ export default async function OrdersPage({
             Show new orders
           </Link>
         )}
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-2" aria-label="Quick filters">
+        <Link
+          href="/admin/orders?need=action"
+          aria-current={filters.need === "action" ? "page" : undefined}
+          className={`rounded-sm border px-3 py-1.5 text-sm font-semibold ${
+            filters.need === "action"
+              ? "border-gold-600 bg-gold-600 text-bronze-ink"
+              : "border-line"
+          }`}
+        >
+          Needs action{filters.need === "action" ? ` (${total})` : needCount > 0 ? ` (${needCount})` : ""}
+        </Link>
+        {filtered && (
+          <Link href="/admin/orders" className="text-sm text-muted underline underline-offset-2">
+            Clear all
+          </Link>
+        )}
+        <a
+          href={exportHref}
+          download
+          className="rounded-sm border border-line px-3 py-1.5 text-sm"
+          title="Download the current filter as a spreadsheet file."
+        >
+          Export CSV
+        </a>
       </div>
 
       <div className="mt-6">
@@ -229,6 +274,7 @@ export default async function OrdersPage({
           status: filters.status === "all" ? undefined : filters.status,
           from: filters.from,
           to: filters.to,
+          need: filters.need === "action" ? "action" : undefined,
         }}
       />
     </main>

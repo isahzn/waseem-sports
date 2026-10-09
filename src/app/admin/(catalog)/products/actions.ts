@@ -113,7 +113,7 @@ export async function createProduct(
 
   await writeAudit({ actor: admin.userId, action: "product.create", entity: "products", entityId: product.id, meta: { name: parsed.data.name } });
   revalidatePath("/admin/products");
-  redirect(`/admin/products/${product.id}`);
+  redirect(`/admin/products/${product.id}?ok=${encodeURIComponent("Product created — add its photos, variants and stock below.")}`);
 }
 
 export async function updateProduct(
@@ -154,7 +154,7 @@ export async function updateProduct(
   await writeAudit({ actor: admin.userId, action: "product.update", entity: "products", entityId: id, meta: { name: parsed.data.name, status: parsed.data.status } });
   revalidatePath("/admin/products");
   revalidatePath(`/admin/products/${id}`);
-  redirect("/admin/products");
+  redirect(`/admin/products/${id}?ok=${encodeURIComponent("Saved.")}`);
 }
 
 async function setArchived(id: string, archived: boolean): Promise<ConfirmState> {
@@ -242,7 +242,7 @@ export async function createVariant(
 
   await writeAudit({ actor: admin.userId, action: "variant.create", entity: "product_variants", entityId: variant.id, meta: { productId, name: parsed.data.name } });
   revalidatePath(`/admin/products/${productId}`);
-  redirect(`/admin/products/${productId}`);
+  redirect(`/admin/products/${productId}?ok=${encodeURIComponent("Variant added — set its stock in Inventory.")}`);
 }
 
 /** Plain form action (FormData in, redirect out). Guards return silently — the form re-renders unchanged. */
@@ -268,7 +268,7 @@ export async function toggleVariantActive(formData: FormData): Promise<void> {
 
   await writeAudit({ actor: admin.userId, action: to ? "variant.activate" : "variant.deactivate", entity: "product_variants", entityId: id });
   revalidatePath(`/admin/products/${productId}`);
-  redirect(`/admin/products/${productId}`);
+  redirect(`/admin/products/${productId}?ok=${encodeURIComponent(to ? "Variant is back on sale." : "Variant hidden from the shop.")}`);
 }
 
 /** Delete-variant with two-step confirm (ConfirmSubmit). Guard failures surface inline. */
@@ -305,7 +305,7 @@ export async function deleteVariant(
 
   await writeAudit({ actor: admin.userId, action: "variant.delete", entity: "product_variants", entityId: variantId });
   revalidatePath(`/admin/products/${productId}`);
-  redirect(`/admin/products/${productId}`);
+  redirect(`/admin/products/${productId}?ok=${encodeURIComponent("Variant deleted.")}`);
 }
 
 // ---------- attribute values (descriptive specs) ----------
@@ -353,5 +353,5 @@ export async function saveAttributeValues(
 
   await writeAudit({ actor: admin.userId, action: "product.specs", entity: "products", entityId: productId, meta: { count: rows.length } });
   revalidatePath(`/admin/products/${productId}`);
-  redirect(`/admin/products/${productId}`);
+  redirect(`/admin/products/${productId}?ok=${encodeURIComponent("Specs saved.")}`);
 }

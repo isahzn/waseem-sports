@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ListingPage, type ListingSearch } from "../../_components/ListingPage";
 
@@ -31,6 +31,17 @@ export default async function SportPage({
     .single();
   if (!sport) notFound();
 
+  // Fixes §2.2: a sport with no published products has no page — redirect to
+  // /shop with a note instead of showing an empty aisle. The shop page renders
+  // the note from the `empty` param (see shop/page.tsx).
+  const { count } = await db
+    .from("products")
+    .select("id", { count: "exact", head: true })
+    .eq("sport_id", sport.id)
+    .eq("status", "published")
+    .is("deleted_at", null);
+  if ((count ?? 0) === 0) redirect(`/shop?empty=${encodeURIComponent(slug)}`);
+
   return (
     <ListingPage
       title={sport.name}
@@ -38,6 +49,7 @@ export default async function SportPage({
       basePath={`/sport/${slug}`}
       scope={{ sport_id: sport.id }}
       searchParams={await searchParams}
+      activeSportSlug={slug}
     />
   );
 }

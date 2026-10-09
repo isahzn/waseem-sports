@@ -24,10 +24,23 @@ function formatLKR(n: number | null): string {
   return `Rs ${Number(n).toLocaleString("en-LK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-export default async function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
+function first(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default async function ProductDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   // Authorize before reading (see ProductsPage).
   await requireAdminOrRedirect();
   const { id } = await params;
+  const sp = await searchParams;
+  const ok = first(sp.ok);
+  const err = first(sp.error);
   const db = adminDb();
 
   const [prodRes, sportsRes, catsRes, brandsRes, variantsRes, imagesRes, attrDefsRes, attrValsRes, invRes] =
@@ -64,9 +77,6 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     }));
 
   const stock = new Map((invRes.data ?? []).map((i) => [i.variant_id, i]));
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-  const publicUrl = (path: string) =>
-    `${supabaseUrl}/storage/v1/object/public/product-media/${path}`;
 
   const update = updateProduct.bind(null, id);
   const addVariant = createVariant.bind(null, id, optionDefs.map((d) => d.slug));
@@ -82,6 +92,16 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
           <h1 className="font-display text-3xl font-bold">{product.name}</h1>
           <StatusBadge tone={productStatusTone(product.status)}>{product.status}</StatusBadge>
         </div>
+        {ok && (
+          <p role="status" className="mt-3 rounded-sm border border-pine-800 bg-pine-900 px-3 py-2 text-sm">
+            {ok}
+          </p>
+        )}
+        {err && (
+          <p role="alert" className="mt-3 rounded-sm border border-red-900 bg-red-950 px-3 py-2 text-sm text-red-200">
+            {err}
+          </p>
+        )}
       </div>
 
       <section>
@@ -115,6 +135,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
       <section>
         <h2 className="text-lg font-bold">Variants + stock</h2>
         <p className="mt-1 text-sm text-muted">
+          A <b>variant</b> is one buyable option of this product (e.g. “Size 7”, “Blue”).
           “Simple” products keep the single Default variant. Set stock in the Inventory page;
           each variant gets its stock record automatically.
         </p>
@@ -202,7 +223,6 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
             uploadAction={uploadProductImage}
             setPrimaryAction={setPrimaryImage}
             deleteAction={deleteImage}
-            publicUrl={publicUrl}
           />
         </div>
       </section>

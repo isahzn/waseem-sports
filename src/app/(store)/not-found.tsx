@@ -13,12 +13,18 @@ export default function StoreNotFound() {
         <h1 style={{ fontSize: "40px" }}>Page not found</h1>
         <p className="sold mt-1">
           The page or product you asked for isn&apos;t here. It may have been unpublished or the link may be
-          mistyped.
+          mistyped. Try searching, or start over from the shop.
         </p>
         <p className="mt-3">
           <Link href="/shop" className="btn">
             Browse the shop
+          </Link>{" "}
+          <Link href="/" className="btn out">
+            Back home
           </Link>
+        </p>
+        <p className="sold">
+          Looking for an order? <Link href="/track">Track it here</Link> with your order number and code.
         </p>
       </div>
     </main>

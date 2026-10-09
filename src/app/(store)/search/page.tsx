@@ -36,7 +36,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
             </Link>
           ))}
           {categories.map((c) => (
-            <Link key={c.id} className="chip" href={`/category/${c.slug}`}>
+            <Link key={c.id} className="chip" href={c.sportSlug ? `/sport/${c.sportSlug}` : `/category/${c.slug}`}>
               {c.name}
             </Link>
           ))}

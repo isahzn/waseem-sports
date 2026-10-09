@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdminOrRedirect } from "@/lib/auth/requireAdmin";
 import { formatLKR } from "@/lib/storefront/money";
+import { whatsappHref } from "@/lib/storefront/contact-links";
 import { getOrderDetail } from "@/lib/orders/queries";
 import { STATUS_LABELS, type OrderStatus } from "@/lib/orders/status";
 import { listOrderNotifications, type NotificationRow } from "@/lib/notifications/outbox";
@@ -65,6 +66,11 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
 
   const address = addressLines(order.shipping_address);
   const phoneDigits = order.customer_phone.replace(/[^\d+]/g, "");
+  // Fixes §3.6: one-tap WhatsApp to the customer with the order reference ready.
+  const waBase = whatsappHref(order.customer_phone);
+  const waHref = waBase
+    ? `${waBase}?text=${encodeURIComponent(`Hi ${order.customer_name}, this is Waseem Sports about your order ${order.order_number} (${formatLKR(order.total)}).`)}`
+    : null;
 
   return (
     <main className="flex flex-col gap-6">
@@ -75,6 +81,13 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <h1 className="font-display text-3xl font-bold">{order.order_number}</h1>
           <StatusBadge tone={statusTone(order.status)}>{STATUS_LABELS[order.status]}</StatusBadge>
+          <Link
+            href={`/admin/orders/${order.id}/slip`}
+            className="rounded-sm border border-line px-3 py-1.5 text-sm"
+            title="Open a print-friendly packing slip."
+          >
+            Print packing slip
+          </Link>
         </div>
         <p className="mt-1 text-sm text-muted">
           Placed {formatDateTime(order.placed_at)} · {paymentMethodLabel(order.payment_method)} ·{" "}
@@ -204,6 +217,18 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                 {order.customer_phone}
               </a>
             </p>
+            {waHref && (
+              <p className="mt-2">
+                <a
+                  href={waHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block rounded-sm border border-line px-3 py-1.5 text-sm"
+                >
+                  WhatsApp customer
+                </a>
+              </p>
+            )}
             {order.customer_email && <p className="text-sm break-all">{order.customer_email}</p>}
           </section>
 

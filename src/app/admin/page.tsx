@@ -5,45 +5,72 @@ import { formatLKR } from "@/lib/storefront/money";
 
 export const metadata = { title: "Dashboard — Waseem Sports Admin" };
 
-const SECTIONS = [
-  { href: "/admin/products", title: "Products", hint: "Create, publish, variants, photos, specs." },
-  { href: "/admin/inventory", title: "Inventory", hint: "Live stock per variant + manual corrections." },
-  { href: "/admin/sports", title: "Sports", hint: "Top-level taxonomy." },
-  { href: "/admin/categories", title: "Categories", hint: "Group products, optional nesting." },
-  { href: "/admin/brands", title: "Brands", hint: "Manufacturers and labels." },
-  { href: "/admin/attributes", title: "Attributes", hint: "Specs + product options (Size, Colour…)." },
-];
-
+/**
+ * Dashboard (Fixes §3.2): the most urgent things first — new orders, bank
+ * transfers waiting for confirmation, low stock — then quick actions, then
+ * the stat tiles (each explained in plain words). The duplicate catalog cards
+ * are gone: the sidebar already navigates to those pages.
+ */
 export default async function AdminDashboardPage() {
   await requireAdminOrRedirect();
   const data = await getDashboardData();
+
+  const urgent: { label: string; detail: string; href: string }[] = [];
+  if (data.newOrders > 0) {
+    urgent.push({
+      label: `${data.newOrders} new order${data.newOrders === 1 ? "" : "s"} to confirm`,
+      detail: "Confirm them so stock is reserved and the customer gets a reply.",
+      href: "/admin/orders?status=new",
+    });
+  }
+  if (data.pendingTransfers > 0) {
+    urgent.push({
+      label: `${data.pendingTransfers} bank transfer${data.pendingTransfers === 1 ? "" : "s"} to confirm`,
+      detail: "Check the shop account, then approve or reject with one tap.",
+      href: "/admin/transfers",
+    });
+  }
+  const outOfStock = data.lowStock.filter((r) => r.available <= 0).length;
+  if (outOfStock > 0) {
+    urgent.push({
+      label: `${outOfStock} product${outOfStock === 1 ? "" : "s"} out of stock`,
+      detail: "Restock or hide them so customers aren't disappointed.",
+      href: "/admin/inventory",
+    });
+  } else if (data.lowStock.length > 0) {
+    urgent.push({
+      label: `${data.lowStock.length} product${data.lowStock.length === 1 ? "" : "s"} running low`,
+      detail: "Reorder soon — quantities are at or below the warning level.",
+      href: "/admin/inventory",
+    });
+  }
 
   const tiles = [
     {
       label: "New orders",
       value: String(data.newOrders),
-      hint: "Waiting to be confirmed",
+      hint: "Orders placed by customers that nobody has confirmed yet.",
       href: "/admin/orders?status=new",
       emphasise: data.newOrders > 0,
     },
     {
       label: "Orders today",
       value: String(data.ordersToday),
-      hint: "Placed since midnight",
+      hint: "Every order placed since midnight, whatever its state.",
       href: "/admin/orders",
       emphasise: false,
     },
     {
       label: "Revenue, 30 days",
       value: formatLKR(data.revenue30d),
-      hint: "Confirmed orders and later",
+      hint: "Money from confirmed orders in the last 30 days (cancelled excluded).",
       href: "/admin/orders",
       emphasise: false,
     },
     {
       label: "Orders, 30 days",
       value: String(data.orders30d),
-      hint: "Excludes cancelled and refunded",
+      hint: "Count of confirmed orders in the last 30 days.",
       href: "/admin/orders",
       emphasise: false,
     },
@@ -52,7 +79,44 @@ export default async function AdminDashboardPage() {
   return (
     <main>
       <h1 className="font-display text-3xl font-bold">Dashboard</h1>
-      <p className="mt-2 text-muted">Orders and stock at a glance.</p>
+      <p className="mt-2 text-muted">What needs your attention today, in order.</p>
+
+      <section aria-labelledby="needs" className="mt-6 rounded-md border border-line bg-card p-4">
+        <h2 id="needs" className="font-display text-xl font-bold">
+          Needs attention
+        </h2>
+        {urgent.length === 0 ? (
+          <p className="mt-3 rounded-sm border border-dashed border-line px-4 py-6 text-center text-sm text-muted">
+            Nothing urgent — no new orders, no transfers waiting, stock looks healthy.
+          </p>
+        ) : (
+          <ul className="mt-3 flex flex-col">
+            {urgent.map((item) => (
+              <li key={item.label} className="border-t border-line first:border-t-0">
+                <Link href={item.href} className="flex items-baseline justify-between gap-3 py-2 text-sm hover:text-gold-400">
+                  <span>
+                    <b>{item.label}</b>
+                    <span className="block text-xs text-muted">{item.detail}</span>
+                  </span>
+                  <span aria-hidden="true">→</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <div className="mt-4 flex flex-wrap gap-2" aria-label="Quick actions">
+        <Link href="/admin/products/new" className="rounded-sm bg-gold-600 px-4 py-2 text-sm font-semibold text-bronze-ink">
+          Add product
+        </Link>
+        <Link href="/admin/inventory" className="rounded-sm border border-line px-4 py-2 text-sm font-semibold">
+          Update stock
+        </Link>
+        <Link href="/admin/orders?status=new" className="rounded-sm border border-line px-4 py-2 text-sm font-semibold">
+          View new orders
+        </Link>
+      </div>
 
       <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {tiles.map((tile) => (
@@ -69,15 +133,6 @@ export default async function AdminDashboardPage() {
           </Link>
         ))}
       </div>
-
-      <p className="mt-4">
-        <Link
-          href="/admin/orders"
-          className="rounded-sm bg-gold-600 px-4 py-2 text-sm font-semibold text-bronze-ink"
-        >
-          Open orders
-        </Link>
-      </p>
 
       <div className="mt-8 grid gap-4 lg:grid-cols-2">
         <section className="rounded-md border border-line bg-card p-4">
@@ -142,20 +197,6 @@ export default async function AdminDashboardPage() {
             </ul>
           )}
         </section>
-      </div>
-
-      <h2 className="mt-10 font-display text-xl font-bold">Catalog</h2>
-      <div className="mt-4 grid gap-4 sm:grid-cols-3">
-        {SECTIONS.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className="rounded-md border border-line bg-card p-4 hover:border-gold-600"
-          >
-            <h3 className="font-semibold">{item.title}</h3>
-            <p className="mt-1 text-sm text-muted">{item.hint}</p>
-          </Link>
-        ))}
       </div>
     </main>
   );
