@@ -63,11 +63,13 @@ you would rather nothing persisted, create a second free Supabase project, run
 `supabase/migrations/*.sql` + `scripts/seed-demo.mjs` against it, and point the Vercel env vars
 there instead.
 
-### P3 · A cart with items logs a React console error (cosmetic, open)
-With items in the cart, `/checkout`, `/track`, `/cart` and `/contact` log React hydration error
-`#418` once per load. The pages render correctly (prices, counts, totals all right) and the checks
-pass functionally; it is a console-error-level defect, root cause unconfirmed, recorded in
-`docs/SECURITY-REPORT.md` §4.1. It will be visible to the owner only if they open dev tools.
+### P3 · ~~A cart with items logs a React console error~~ — **fixed 2026-10-08**
+With items in the cart, `/checkout`, `/track`, `/cart` and `/contact` (and `/`) used to log React
+hydration error `#418` once per load. The cause was the header cart badge: its count comes from the
+`refreshCart` server action, which could resolve while React was still hydrating. The count is now
+gated behind a hydration-safe hook (`src/lib/storefront/use-hydrated.ts`) in each component that
+renders it. Verified with a real cart cookie: **zero console errors across five routes, three runs**
+(`.tmp/w-hydrate.mjs`), and the browser pass is **45/45**. Full detail: `docs/SECURITY-REPORT.md` §4.1.
 
 ### P4 · The FAQ quotes delivery fees the owner never set
 The FAQ reads live `shipping_rules`: **"Colombo and suburbs LKR 450 · 1–2 days"** and

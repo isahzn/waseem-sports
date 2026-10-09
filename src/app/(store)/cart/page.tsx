@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { formatLKR } from "@/lib/storefront/money";
 import { cardImage } from "@/lib/storefront/images";
+import { useHydrated } from "@/lib/storefront/use-hydrated";
 import { useCart } from "../_components/CartProvider";
 
 /**
@@ -13,15 +14,20 @@ import { useCart } from "../_components/CartProvider";
  */
 export default function CartPage() {
   const { preview, loading, setQty, remove } = useCart();
+  const hydrated = useHydrated();
   const lines = preview?.lines.filter((l) => l.qty > 0) ?? [];
+  // Render the priced cart only once hydration is done: the price/stock lookup
+  // is an effect-triggered server action that can resolve mid-hydration, and
+  // swapping these lines in while React is hydrating throws React #418.
+  const showPreview = hydrated && !loading;
 
   return (
     <main>
       <h1 style={{ fontSize: "40px" }}>Cart</h1>
 
-      {loading && <p className="sold">Checking prices and stock…</p>}
+      {!showPreview && <p className="sold">Checking prices and stock…</p>}
 
-      {!loading && preview && preview.issues.length > 0 && (
+      {showPreview && preview && preview.issues.length > 0 && (
         <div className="box" role="alert">
           {preview.issues.map((issue) => (
             <p className="sold" key={`${issue.variantId}-${issue.code}`}>
@@ -31,7 +37,7 @@ export default function CartPage() {
         </div>
       )}
 
-      {!loading && lines.length === 0 && (
+      {showPreview && lines.length === 0 && (
         <div className="box">
           <h2>Your cart is empty</h2>
           <p>Add something from the shop to get started.</p>
@@ -43,7 +49,7 @@ export default function CartPage() {
         </div>
       )}
 
-      {!loading && lines.length > 0 && (
+      {showPreview && lines.length > 0 && (
         <div className="two">
           <div className="box">
             {lines.map((line) => {

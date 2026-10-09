@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useRef, useState } from "react";
+import { publicImageUrl } from "@/lib/storefront/images";
 import { FormError } from "../../_components/ui";
 import { CropEditor } from "./CropEditor";
 
@@ -24,14 +25,12 @@ export function ImagesManager({
   uploadAction,
   setPrimaryAction,
   deleteAction,
-  publicUrl,
 }: {
   productId: string;
   images: ImageRow[];
   uploadAction: (prev: UploadState, formData: FormData) => Promise<UploadState>;
   setPrimaryAction: (formData: FormData) => Promise<void>;
   deleteAction: (formData: FormData) => Promise<void>;
-  publicUrl: (path: string) => string;
 }) {
   const [state, formAction, pending] = useActionState(uploadAction, {});
   const [clientError, setClientError] = useState<string | undefined>();
@@ -104,7 +103,7 @@ export function ImagesManager({
             <li key={img.id} className="overflow-hidden rounded-md border border-line bg-card">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={publicUrl(img.storage_path)}
+                src={publicImageUrl(img.storage_path)}
                 alt={img.alt_text ?? ""}
                 className="aspect-square w-full object-cover"
                 loading="lazy"
@@ -143,7 +142,7 @@ export function ImagesManager({
                 </span>
                 {croppingId === img.id && (
                   <span className="mt-2 block">
-                    <CropEditor imageId={img.id} src={publicUrl(img.storage_path)} alt={img.alt_text ?? ""} />
+                    <CropEditor imageId={img.id} src={publicImageUrl(img.storage_path)} alt={img.alt_text ?? ""} />
                   </span>
                 )}
               </div>

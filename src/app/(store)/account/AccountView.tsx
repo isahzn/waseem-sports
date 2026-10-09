@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useSyncExternalStore } from "react";
 import { formatLKR } from "@/lib/storefront/money";
 import { ORDER_LIFECYCLE, forgetOrder, lifecycleStep, useRememberedOrders } from "@/lib/storefront/order-memory";
+import { useHydrated } from "@/lib/storefront/use-hydrated";
 
 function formatPlacedAt(value: string): string {
   const date = new Date(value);
@@ -21,19 +21,9 @@ function formatPlacedAt(value: string): string {
  * only be read after mount: the first paint shows a short "checking" line
  * rather than a false "you have no orders".
  */
-const noopSubscribe = () => () => {};
-
-/** True once the client is running — a device-local list needs a client read. */
-function useHydrated(): boolean {
-  return useSyncExternalStore(
-    noopSubscribe,
-    () => true,
-    () => false,
-  );
-}
-
 export function AccountView() {
   const orders = useRememberedOrders();
+  // The list is device-local, so it can only be read after hydration.
   const mounted = useHydrated();
 
   return (

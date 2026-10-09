@@ -115,4 +115,7 @@ no secrets in Git history.
 - WAHA/VPS outage: notifications queue in the outbox; orders unaffected.
 - Security incident: rotate keys (Supabase, provider, cron), revoke sessions,
   review `audit_logs` + app logs.
-  Write these as `docs/RUNBOOK.md` in PHASE 11.
+  These now live in **`docs/RUNBOOK.md`** (written 2026-10-08: deploy/rollback, backup +
+  rehearsed restore, key rotation and what each rotation breaks, adding/removing an
+  admin, the WAHA session backup + re-pair drill, the cron auth contract, where the logs
+  and audit trail are, a symptom → cause → fix table, and the launch drills).

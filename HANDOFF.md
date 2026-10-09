@@ -14,15 +14,21 @@
 
 > This status section is maintained by the agent; the brief below it is the client's and is not rewritten.
 
-**Status 2026-10-07 (later sessions). Phases 00–05 are built and proven, and PHASE 07's front end plus the landing-page CMS builder are built. The next phase is PHASE 06 (notifications).**
+**Status 2026-10-08. Phases 00–10 are built and verified (see `docs/SECURITY-REPORT.md`),
+PHASE 06 ships disabled pending a WAHA VPS and `PHASE 11`'s local half is done — every gate
+and harness re-run green on the final tree, the runbook and owner guide written, and its two
+remaining SHOP SCREENS proven live (create a page through the builder; host the section-field
+XSS matrix). What is left needs the owner or a deployed host: a real `ADMIN_PASSCODE`, the real
+delivery rules, products under Cricket/Tennis, and the PHASE 11 launch checks
+(`phases/PHASE-11-production-qa.md`, `SESSION-HANDOFF.md`).**
 
 | | |
 |---|---|
 | ✅ **Built and verified** | **00** audit + tokens · **01** foundation · **02** schema applied to the linked Supabase project and proven live (last-unit race, idempotency, commit math, full RLS matrix — `docs/RLS-MATRIX.md`) · **03** catalog + CMS admin · **04** storefront · **05** checkout → COD order → tokenized tracking + admin orders/shipping/dashboard · **07 (front end only)** a measured 1:1 replica of the canonical design, a multi-page storefront, `/admin` as its own area, and the landing-page section builder. Records: each `phases/PHASE-0N-*.md` § Execution record, decisions D1–D43 in `docs/DECISIONS.md`, the seed `scripts/seed-demo.mjs`. |
 | ⚠️ **Temporary, by owner request** | `/admin` opens with one shared password (`ADMIN_PASSCODE`, D42) instead of an account. It is the whole admin surface (prices, stock, orders, publishing) — **before the site is public it must be a long random value or removed** (`docs/SECURITY.md`, `docs/DEPLOYMENT.md` pre-launch checklist). A passcode session also records `actor: null` in `audit_logs`, so the trail cannot name who acted; create the owner account per `DEPLOYMENT.md` step 2 when that matters. |
 | ❓ **Needs owner** | Shop email (V1 — not findable online), opening hours (V2 — only an "open daily" signal found), checkout fields (D12), out-of-stock/low-stock (D11/D13), real delivery rules entered in `/admin/shipping` before launch (D5 — deliberately nothing is seeded), and approval of `specs/whatsapp-waha-spec.md` + `specs/product-image-pipeline-spec.md`. Decided earlier and holding: logo/video are real, `WS` prefix, reserve-on-placed with an admin toggle (D2), admin-managed shipping (D5) |
-| ➡️ **Next action** | Start **PHASE 06** (`phases/PHASE-06-notifications.md`): the outbox rows already exist for every order event. Two loose ends first, in this order: finish the admin click-through in a browser — **creating a page through the UI** (add/reorder/hide/delete sections, publish, check `/`), then orders (confirm → processing → shipped → delivered, cancel, manual stock), shipping-rule CRUD, the D2 toggle and the dashboard. Then PHASE 07's remaining half (preview fidelity/XSS proofs) and PHASE 08 onward. |
-| 🚧 **Still open** | PHASE 06 and 08–11. The MVP was PHASES 0–5, which are done; do not start 08–09 before the admin pass is finished. |
+| ➡️ **Next action** | Owner actions, in this order: set a long random `ADMIN_PASSCODE` on the host (or remove it and use an account), enter the real delivery rules in `/admin/shipping` (D5), and decide Cricket/Tennis (add products or archive the sports). Then the PHASE 11 launch checks that need a host: full journeys on staging then production, mobile/accessibility/Lighthouse, live WhatsApp (needs the VPS + engine decision), a rehearsed backup restore, and headers/CSP as served by GoDaddy. `docs/RUNBOOK.md` is the operator's document for all of it. |
+| 🚧 **Still open** | PHASE 11's launch half (host + owner actions above) and PHASE 06's provider work (WAHA VPS, engine choice, pairing — all stop-and-ask). Everything else is built, and PHASES 07–10's deferred proofs were closed on 2026-10-08. |
 | 🧭 **Where the real detail lives** | [`SESSION-HANDOFF.md`](SESSION-HANDOFF.md) — per-session record, failed attempts, guardrails, next steps. Read it before this file's status table. |
 
 ---

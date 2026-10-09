@@ -29,6 +29,7 @@ and are re-runnable. Nothing here is inferred from "the code looks right".
 | 7 | **No CSP.** A single missed escape anywhere became script execution. | Enforced CSP in `next.config.ts`: `default-src 'self'`, `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`, `frame-ancestors 'none'`, scripts self + inline (Next's bootstrap), images `https:`, media `blob:`, connect to `*.supabase.co`. | `next.config.ts` |
 | 8 | **Known runtime CVE** in `sharp`. | `^0.34` → `^0.35.5`; PNG→WebP round trip re-verified through the upload pipeline. | `package.json` |
 | 9 | **Login page baked at build time.** `ADMIN_PASSCODE` could not be set or cleared without a rebuild — an operator changing it would have seen no effect and could believe the gate had moved. | `export const dynamic = "force-dynamic"` on `/admin/login` (now `ƒ Dynamic` in the build output). | `src/app/(auth)/admin/login/page.tsx` |
+| 10 | **The product editor returned HTTP 500** (found 2026-10-08 by the admin route sweep). A plain function (`publicUrl`) was passed as a prop from a server component into the client component `ImagesManager`, which React refuses to serialize across the RSC boundary. Not a data leak — the page never rendered — but it took out the one screen the owner uses for prices, variants, specs and photos, and it silently survived an "all admin screens open" check that had only opened *list* pages. | The prop is gone; the client component calls the client-safe `publicImageUrl()` helper (`src/lib/storefront/images.ts`) directly. | `src/app/admin/(catalog)/products/[id]/page.tsx`, `.../[id]/ImagesManager.tsx` |
 
 ### Verified side effects
 
@@ -69,24 +70,45 @@ matrix, and no secret is printed.
 | `.tmp/phase10/h4-sport-image.mjs` | The **new** sport-photo upload path, same malice matrix: empty, executable, SVG-with-script, HTML, PHP, corrupt png, truncated jpeg, random bytes, 7000px side, >10 MB — all rejected with the right status; honest PNG accepted, stored as `sports/<uuid>.webp`, publicly readable, verified WebP magic, no EXIF payload; product-namespace paths are never deleted by the sport cleanup | **18 / 18** |
 | `.tmp/phase10/correction-check.mjs` | The owner's own fix list end to end (search, store structure, admin separation, claim removal, contact links, no prototype wording) + 10 hostile inputs | **47 / 47** |
 | `.tmp/phase10/shop-by-sport-check.mjs` | "Shop by sport" is admin-editable and the storefront follows: tiles render and are ordered, per-sport promotion off removes that tile on the next request, hiding the block removes it from the homepage, restoring puts it back, admin screens expose name/photo/order/promotion, anon never sees or reaches them | **38 / 38** |
-| `.tmp/phase10/browser-pass.mjs` | Real Chrome: customer walk (phone-width layout, tiles, search typed into the header, add-to-cart, cart/checkout/track as a guest, contact links, no broken links, no admin link) and admin walk (7 screens load clean, sports screens expose the edits, builder shows the block) | **44 / 45** — the one failure is §4.1 |
+| `.tmp/phase10/browser-pass.mjs` | Real Chrome: customer walk (phone-width layout, tiles, search typed into the header, add-to-cart, cart/checkout/track as a guest, contact links, no broken links, no admin link) and admin walk (7 screens load clean, sports screens expose the edits, builder shows the block) | **45 / 45** (was 44/45 — §4.1 is fixed) |
+| `.tmp/phase10/admin-route-sweep.mjs` | **Every** admin route (26: 18 index screens + 8 detail/new screens, resolved with real row ids) rendered with a real session: 2xx, the admin shell present, no 5xx and no empty render | **26 / 26** — this is the check that caught the product-editor 500 (§1.10) |
+| `.tmp/phase10/browser-page-create.mjs` | Creating a page through the admin UI end to end: gate → New page form → builder → add a section → publish → the storefront serves it → cleanup leaves no row | **17 / 17** |
+| `.tmp/phase10/browser-xss-sections.mjs` | Hostile strings in **every** CMS section text field, then the published page fetched: payload stored as data, served escaped, no dialog, no injected element; and `url()` hero backgrounds + `//evil`/`javascript:` links refused with no row written | **38 / 38** |
+| `.tmp/w-hydrate.mjs` | The hydration defect (§4.1) with a real cart cookie over five storefront routes | **0 errors, 3 consecutive runs** |
+| `.tmp/phase05/e2e-checkout.mjs` | A real COD order placed in Chrome: server-priced totals, stock reserve, outbox row, cart cleared, `/track` with the code, a wrong token as a plain 404, **plus the admin order detail and list rendered while the row still exists**; cleans up after itself | **23 / 23** |
 
 `npm run typecheck` (0 errors), `npm run lint` (0 errors; 5 pre-existing warnings, 4 of them unused
 `eslint-disable` directives) and `npm run build` (exit 0) all pass on the final tree.
 
 ## 4. Residual risk and open items
 
-### 4.1 Cart hydration error (open, low severity, not root-caused)
-With **items in the cart**, the production build logs React error `#418` (hydration text mismatch)
-once on `/checkout`, `/track`, `/cart` and `/contact`. The rendered page is correct — no wrong
-price, no wrong count, and the walk passes every functional check on those pages — but every
-customer with a non-empty cart gets an error in the console on each page load.
-Reproduce: `.tmp/phase10/dbg-diff.mjs` (sets a real cart cookie, loads the page in Chrome, diffs
-what the server rendered against what the browser shows).
-The only cookie-derived text on those pages is the header cart badge, which is the leading suspect;
-the root cause was **not** confirmed, and a speculative patch to the cart would risk a working
-checkout, so it is reported rather than guessed at. Fixing it needs the dev-mode React diff, which
-this environment could not reproduce (dev-mode repro attempts produced no warning).
+### 4.1 Cart hydration error — **FIXED 2026-10-08** (was: open, low severity, not root-caused)
+With **items in the cart**, the production build logged React error `#418` (hydration text
+mismatch) on `/`, `/cart`, `/checkout`, `/track` and `/contact`. The rendered page was always
+correct — no wrong price, no wrong count — but every customer with a non-empty cart got an error
+in the console on each page load.
+
+**Root cause (now confirmed, not suspected).** The header's cart badge text is driven by the
+`refreshCart` **server action**. That action resolves *while the client is still hydrating*, and
+React then finds a text node whose content (`2`) differs from the server's markup (`0`) mid-pass —
+which is exactly what `#418` reports (`args[]=text`). The bisect that proved it: an empty cart, a
+garbage cookie and a well-formed cookie naming an **unknown** variant all leave the count at `0`
+and produce **zero** errors; only a real, priceable line makes the count change, and only then does
+the error appear. Dev-mode React could not print its usual diff here because the enforced CSP
+blocks `eval()`, so the mutation stream during hydration (`.tmp/w-mutations.mjs`) and the payload
+bisect were used instead.
+
+**Fix:** a shared hydration-safe hook, `src/lib/storefront/use-hydrated.ts`
+(`useSyncExternalStore` — React uses the server snapshot during hydration and switches after),
+applied **inside the components that render the value**: the header badge and its `aria-label`,
+the cart page's priced lines, and `/account` (whose local copy of the same hook is now the shared
+one). It must live in the rendering component, not in a provider above it: the header sits inside a
+`<Suspense>` boundary that can hydrate *after* the provider's effect runs, which is why the first
+attempt at a provider-level flag did not fix it.
+
+**Verified:** `.tmp/w-hydrate.mjs` — a real cart cookie, five routes, **0 console/exception events
+across three consecutive runs** — and `browser-pass.mjs` at **45/45** (was 44/45). The badge still
+shows the live count once hydrated.
 
 ### 4.2 `ADMIN_PASSCODE` is still too short
 `.env` holds a 5-character passcode. It is HMAC-signed and rate-limited, but it is a launch
@@ -119,10 +141,13 @@ Everything below needs the deployed host, and none of it is proven by the runs a
 - backup restore, and the scheduled jobs on the host's scheduler;
 - PHASE 11 journey tests against staging (there is no staging environment).
 
-### 4.6 Test-only artifacts in the live database
-`TEST-DEMO-BALL` and `TEST-DEMO-SHOE` products exist as **archived + soft-deleted** rows (their
-variants are still `is_active`). They are not reachable from the storefront and RLS hides deleted
-rows, but they are not part of the seed and should be removed before launch.
+### 4.6 Test-only artifacts in the live database — **RESOLVED 2026-10-08**
+`TEST-DEMO-BALL` and `TEST-DEMO-SHOE` were **archived + soft-deleted** rows whose variants were
+still `is_active`. They were not reachable from the storefront (RLS hides deleted rows) but were not
+part of the seed. Both products are now **hard-deleted** with their variants, inventory rows and
+ledger entries (`product_variants.product_id` cascades; no `order_items` referenced either, which
+was checked first). Verified: no `TEST-%` product rows remain and the **11 seeded products are
+untouched** with their stock at 50/50.
 
 ### 4.7 Notes for whoever re-runs the harnesses
 - `h3-staff.mjs` parks `.env` (restored on every exit path) to genuinely disable the passcode gate:

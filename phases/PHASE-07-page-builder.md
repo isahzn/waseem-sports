@@ -104,3 +104,50 @@ The four deferred items were closed by reading the shipped code (typecheck 0 err
 - **Hero weight — measured.** `public/assets/bg.mp4` = 3.1 MB (byte-identical to `design/Background.mp4`), `public/assets/` total 4.3 MB. The layer is decorative (`aria-hidden`, `pointer-events:none`) and hidden under `prefers-reduced-motion` (`design.css:121-122`, `(store)/layout.tsx`, `Hero.tsx` skips auto-advance when reduced motion is set). No autoplay change made; mobile-data cost is the 3.1 MB file on first load (browser-cached after).
 
 Acceptance read: owner can create a page (form exists), reorder homepage (up/down proven 33/33), unpublished stays hidden (query-gated), injection renders as text (JSX-escaped), no per-page TS (all DB-driven). Remaining owner-side step is the eyes-on click (create "Special Offers", publish, check `/pages/...`), left for the admin walkthrough — no code gap found.
+
+### 11. Close-out for real — 2026-10-08 (live browser proofs)
+
+§10 closed these two items by reading the code; this pass ran them for real, against the
+production build and the live database. Both harnesses sign in with the real passcode,
+create a real page, exercise it, and delete everything they touched (verified gone).
+
+**Page creation through the UI — PROVEN. `.tmp/phase10/browser-page-create.mjs`, 17/17.**
+
+| Step | Result |
+|---|---|
+| `/admin/pages` is behind the gate | redirected to `/admin/login` |
+| the passcode opens it | the New page form renders (title + URL slug) |
+| create a page | lands on `/admin/pages/<uuid>` with "Page created." |
+| add a Text block | the form exists, "Section added.", the section is listed |
+| publish | "Page published", the badge flips to Published, the draft warning goes |
+| the storefront | `/pages/<slug>` returns 200 with the title as `<h1>` and the body text |
+| cleanup | page + sections deleted (204/204), no row left, `/pages/<slug>` now 404 |
+
+This also proves the create path's zod title/slug validation, the slug-clash check and
+the `page.create` audit row in the same flow.
+
+**XSS in every section text field — PROVEN. `.tmp/phase10/browser-xss-sections.mjs`, 38/38.**
+
+Hostile strings (`<script>`, `<img src=x onerror=…>`, `<svg/onload=…>` and a
+`">`-breaking heading) were submitted through the real builder into **every** section
+type's text fields — `rich_text` title/body, `promo_countdown` title/text/label,
+`promo_strip` items, `hero` slide title/text, and the `sport_tiles` / `category_tiles` /
+`product_grid` headings. Results:
+
+- each field accepts and stores the payload as **data** (`jsonb`), the admin shows
+  "Section added.", nothing is interpreted in the builder;
+- the published page serves it **escaped** (`&lt;script&gt;alert…`); no raw `<script>`,
+  `onerror=` or `<svg/onload` appears in the HTML;
+- **zero JavaScript dialogs fire** while the page renders, and no injected element
+  (`img[src=x]`, `svg[onload]`, `script[src*=evil]`) is in the DOM;
+- the two non-text fields are **refused outright** by `parseSectionContent`, with no row
+  written: a hero background of `url(https://evil.example/x.png)` ("Use a plain CSS
+  gradient…") and link hrefs of `//evil.example/steal` / `javascript:alert(1)` ("Links
+  must start with / or http(s)://") on hero, `product_grid` and `promo_countdown`.
+
+**Harness correction made on the way:** `replica-diff.mjs` still asserted the mockup's
+removed promotion (`.top` must read "Free delivery over LKR 10,000") and the mockup's
+four-item trust strip, so it failed on correct code. It now asserts those two CMS-driven
+elements against the **database** (the configured `public.announcement`, the published
+`promo_strip` items, one column per item) and skips `.top`'s style comparison while it is
+unconfigured. Re-run: **73/73, 0 divergent selectors**, 252 properties over 6 routes.
