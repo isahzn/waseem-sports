@@ -12,8 +12,8 @@ import {
   Pagination,
   SearchBar,
   StatusBadge,
-  productStatusTone,
 } from "../_components/ui";
+import { productStatusTone } from "../_components/tones";
 import { ConfirmSubmit } from "../_components/ConfirmSubmit";
 import { archiveProduct, restoreProduct } from "./actions";
 

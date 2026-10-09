@@ -26,15 +26,10 @@ export function StatusBadge({
   );
 }
 
-export function visibilityTone(isVisible: boolean): "green" | "muted" {
-  return isVisible ? "green" : "muted";
-}
-
-export function productStatusTone(status: string): "gold" | "muted" | "red" {
-  if (status === "published") return "gold";
-  if (status === "archived") return "red";
-  return "muted";
-}
+// Tone mappings live in ./tones.ts (server-safe). Re-exported here so
+// existing client-side imports from "ui" keep working; Server Components
+// must import from "./tones" directly and never call through this file.
+export { productStatusTone, visibilityTone } from "./tones";
 
 /** Empty-table state with an optional primary action. */
 export function EmptyState({

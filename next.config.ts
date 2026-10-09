@@ -9,9 +9,18 @@ import type { NextConfig } from "next";
 // `img-src https:` is deliberately broad: product thumbnails come from the
 // Supabase storage host (env-defined) and manufacturer domains in admin
 // image search. No `upgrade-insecure-requests`: local dev runs plain http.
+// `unsafe-eval` is a development-only allowance: React's development build
+// (served by `next dev` / Turbopack) uses eval() to reconstruct component
+// callstacks, which this policy would otherwise block with "eval() is not
+// supported in this environment". React production builds never use eval(),
+// so the production policy stays strict — and since `next build` evaluates
+// this file with NODE_ENV=production, the allowance can never leak into a
+// production deployment.
+const allowUnsafeEval = process.env.NODE_ENV !== "production";
+
 const contentSecurityPolicy = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'",
+  `script-src 'self' 'unsafe-inline'${allowUnsafeEval ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com data:",
   "img-src 'self' data: blob: https:",

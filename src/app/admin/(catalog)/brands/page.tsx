@@ -9,8 +9,8 @@ import {
   Pagination,
   SearchBar,
   StatusBadge,
-  visibilityTone,
 } from "../_components/ui";
+import { visibilityTone } from "../_components/tones";
 import { ConfirmSubmit } from "../_components/ConfirmSubmit";
 import { archiveBrand, restoreBrand } from "./actions";
 

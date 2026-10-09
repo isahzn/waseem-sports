@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { adminDb, requireAdminOrRedirect } from "@/lib/auth/requireAdmin";
-import { StatusBadge, productStatusTone } from "../../_components/ui";
+import { StatusBadge } from "../../_components/ui";
+import { productStatusTone } from "../../_components/tones";
 import { ConfirmSubmit } from "../../_components/ConfirmSubmit";
 import { ProductForm } from "../ProductForm";
 import { VariantForm } from "../VariantForm";
